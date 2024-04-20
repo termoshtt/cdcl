@@ -66,18 +66,35 @@ pub use dnf::DNF;
 /// // ¬¬x0 = x0
 /// assert_eq!(!!Expr::variable(0), Expr::variable(0));
 ///
-/// // Negation of True and False
+/// // x0 ∧ x0 = x0
+/// assert_eq!(Expr::variable(0) & Expr::variable(0), Expr::variable(0));
+/// // x0 ∨ x0 = x0
+/// assert_eq!(Expr::variable(0) | Expr::variable(0), Expr::variable(0));
+///
+/// // x0 ∨ ¬x0 = 1
+/// assert_eq!(Expr::variable(0) | !Expr::variable(0), Expr::True);
+/// assert_eq!(!Expr::variable(0) | Expr::variable(0), Expr::True);
+/// // x0 ∧ ¬x0 = 0
+/// assert_eq!(Expr::variable(0) & !Expr::variable(0), Expr::False);
+/// assert_eq!(!Expr::variable(0) & Expr::variable(0), Expr::False);
+///
+/// // ¬1 = 0
 /// assert_eq!(!Expr::True, Expr::False);
+/// // ¬0 = 1
 /// assert_eq!(!Expr::False, Expr::True);
 ///
 /// // 1 ∧ x0 = x0
 /// assert_eq!(Expr::True & Expr::variable(0), Expr::variable(0));
+/// assert_eq!(Expr::variable(0) & Expr::True, Expr::variable(0));
 /// // 0 ∨ x0 = x0
 /// assert_eq!(Expr::False | Expr::variable(0), Expr::variable(0));
+/// assert_eq!(Expr::variable(0) | Expr::False, Expr::variable(0));
 /// // 1 ∨ x0 = 1
 /// assert_eq!(Expr::True | Expr::variable(0), Expr::True);
+/// assert_eq!(Expr::variable(0) | Expr::True, Expr::True);
 /// // 0 ∧ x0 = 0
 /// assert_eq!(Expr::False & Expr::variable(0), Expr::False);
+/// assert_eq!(Expr::variable(0) & Expr::False, Expr::False);
 /// ```
 ///
 #[derive(Clone, PartialEq, Eq, Hash)]
