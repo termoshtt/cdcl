@@ -57,12 +57,20 @@ impl BitOr for CNF {
 
     fn bitor(self, rhs: Self) -> Self {
         // Distributive Law
-        match self.0 {
-            Expr::And(lhs, lhr) => {
-                // (a ∧ b) ∨ c = (a ∨ c) ∧ (b ∨ c)
-                CNF((*lhs | rhs.0.clone()) & (*lhr | rhs.0))
+        match (self.0, rhs.0) {
+            (Expr::And(a, b), Expr::And(c, d)) => {
+                // (a ∧ b) ∨ (c ∧ d) = (a ∨ c) ∧ (a ∨ d) ∧ (b ∨ c) ∧ (b ∨ d)
+                CNF((*a.clone() | *c.clone()) & (*a | *d.clone()) & (*b.clone() | *c) & (*b | *d))
             }
-            _ => CNF(self.0 | rhs.0),
+            (Expr::And(a, b), c) => {
+                // (a ∧ b) ∨ c = (a ∨ c) ∧ (b ∨ c)
+                CNF((*a | c.clone()) & (*b | c))
+            }
+            (a, Expr::And(c, d)) => {
+                // a ∨ (c ∧ d) = (a ∨ c) ∧ (a ∨ d)
+                CNF((a.clone() | *c) & (a | *d))
+            }
+            (lhs, rhs) => CNF(lhs | rhs),
         }
     }
 }
