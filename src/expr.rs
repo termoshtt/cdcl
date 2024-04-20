@@ -43,6 +43,7 @@ pub use dnf::DNF;
 /// ```
 ///
 /// [BitAnd] (`&`), [BitOr] (`|`), and [Not] (`!`) operators can be used to construct ∧, ∨, and ¬ operations.
+/// Note that the precedence of `&` is higher than `|`.
 ///
 /// ```rust
 /// use cdcl::Expr;
