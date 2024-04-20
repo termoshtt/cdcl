@@ -13,6 +13,23 @@ pub use dnf::DNF;
 ///
 /// This does not assume that the expression is in conjunctive (CNF) or disjunctive normal form (DNF).
 ///
+/// # Examples
+///
+/// [BitAnd] (`&`), [BitOr] (`|`), and [Not] (`!`) operators can be used to construct ∧, ∨, and ¬ operations.
+///
+/// ```rust
+/// use cdcl::Expr;
+///
+/// let expr = Expr::variable(0) & Expr::variable(1) | Expr::variable(2);
+/// assert_eq!(expr.to_string(), "(x0 ∧ x1) ∨ x2");
+///
+/// let expr = Expr::variable(0) | Expr::variable(1) & Expr::variable(2);
+/// assert_eq!(expr.to_string(), "x0 ∨ (x1 ∧ x2)");
+///
+/// let expr = !Expr::variable(0) & Expr::variable(1);
+/// assert_eq!(expr.to_string(), "¬x0 ∧ x1");
+/// ```
+///
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Expr {
     And(Box<Expr>, Box<Expr>),
@@ -109,22 +126,5 @@ impl fmt::Display for Expr {
             Expr::True => write!(f, "⊤"),
             Expr::False => write!(f, "⊥"),
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_display() {
-        let expr = Expr::variable(0) & Expr::variable(1) | Expr::variable(2);
-        assert_eq!(expr.to_string(), "(x0 ∧ x1) ∨ x2");
-
-        let expr = Expr::variable(0) | Expr::variable(1) & Expr::variable(2);
-        assert_eq!(expr.to_string(), "x0 ∨ (x1 ∧ x2)");
-
-        let expr = !Expr::variable(0) & Expr::variable(1);
-        assert_eq!(expr.to_string(), "¬x0 ∧ x1");
     }
 }
