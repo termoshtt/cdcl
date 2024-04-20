@@ -4,7 +4,7 @@ use std::{
     ops::{BitAnd, BitOr, Not},
 };
 
-/// Expression in Conjunctive Normal Form
+/// Expression in [Conjunctive Normal Form](https://en.wikipedia.org/wiki/Conjunctive_normal_form)
 ///
 /// # Examples
 ///
@@ -22,6 +22,14 @@ use std::{
 /// // (x0 ∧ x1) ∨ (x2 ∧ x3) = (x0 ∨ x2) ∧ (x0 ∨ x3) ∧ (x1 ∨ x2) ∧ (x1 ∨ x3)
 /// let expr = (CNF::variable(0) & CNF::variable(1)) | (CNF::variable(2) & CNF::variable(3));
 /// assert_eq!(expr.to_string(), "(x0 ∨ x2) ∧ (x0 ∨ x3) ∧ (x1 ∨ x2) ∧ (x1 ∨ x3)");
+///
+/// // ¬(x0 ∧ x1) = ¬x0 ∨ ¬x1
+/// let expr = !(CNF::variable(0) & CNF::variable(1));
+/// assert_eq!(expr.to_string(), "¬x0 ∨ ¬x1");
+///
+/// // ¬(x0 ∨ x1) ∧ x2 = ¬x0 ∧ ¬x1 ∧ x2
+/// let expr = !(CNF::variable(0) | CNF::variable(1)) & CNF::variable(2);
+/// assert_eq!(expr.to_string(), "¬x0 ∧ ¬x1 ∧ x2");
 /// ```
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct CNF(Expr);
@@ -80,6 +88,10 @@ impl Not for CNF {
 
     fn not(self) -> Self {
         // De Morgan's Law
-        todo!()
+        match self.0 {
+            Expr::And(a, b) => CNF(!*a | !*b),
+            Expr::Or(a, b) => CNF(!*a & !*b),
+            a => CNF(!a),
+        }
     }
 }

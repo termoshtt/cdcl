@@ -15,6 +15,33 @@ pub use dnf::DNF;
 ///
 /// # Examples
 ///
+/// Logical variables represented by [Expr::Var] have unique integer IDs. They are displayed as `x` followed by the ID.
+///
+/// ```rust
+/// use cdcl::Expr;
+///
+/// // Create a expression consists of a variable with id 0
+/// let expr = Expr::variable(0);
+/// assert_eq!(expr.to_string(), "x0");
+/// ```
+///
+/// [Expr::True] and [Expr::False] constants
+///
+/// ```rust
+/// use cdcl::Expr;
+///
+/// let t = Expr::True;
+/// let f = Expr::False;
+///
+/// // Displayed as 1 and 0
+/// assert_eq!(t.to_string(), "1");
+/// assert_eq!(f.to_string(), "0");
+///
+/// // From bool
+/// assert_eq!(Expr::from(true), t);
+/// assert_eq!(Expr::from(false), f);
+/// ```
+///
 /// [BitAnd] (`&`), [BitOr] (`|`), and [Not] (`!`) operators can be used to construct ∧, ∨, and ¬ operations.
 ///
 /// ```rust
@@ -30,6 +57,28 @@ pub use dnf::DNF;
 /// assert_eq!(expr.to_string(), "¬x0 ∧ x1");
 /// ```
 ///
+/// Different from [CNF] and [DNF], these expressions are kept as created except for following cases:
+///
+/// ```rust
+/// use cdcl::Expr;
+///
+/// // ¬¬x0 = x0
+/// assert_eq!(!!Expr::variable(0), Expr::variable(0));
+///
+/// // Negation of True and False
+/// assert_eq!(!Expr::True, Expr::False);
+/// assert_eq!(!Expr::False, Expr::True);
+///
+/// // 1 ∧ x0 = x0
+/// assert_eq!(Expr::True & Expr::variable(0), Expr::variable(0));
+/// // 0 ∨ x0 = x0
+/// assert_eq!(Expr::False | Expr::variable(0), Expr::variable(0));
+/// // 1 ∨ x0 = 1
+/// assert_eq!(Expr::True | Expr::variable(0), Expr::True);
+/// // 0 ∧ x0 = 0
+/// assert_eq!(Expr::False & Expr::variable(0), Expr::False);
+/// ```
+///
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub enum Expr {
     And(Box<Expr>, Box<Expr>),
@@ -41,9 +90,9 @@ pub enum Expr {
         /// Unique identifier for the variable.
         id: usize,
     },
-    /// True constant.
+    /// True constant, displayed as `1`.
     True,
-    /// False constant.
+    /// False constant, displayed as `0`.
     False,
 }
 
@@ -92,7 +141,13 @@ impl BitOr for Expr {
 impl Not for Expr {
     type Output = Expr;
     fn not(self) -> Self::Output {
-        Expr::Not(Box::new(self))
+        // Double negation elimination
+        match self {
+            Expr::Not(e) => *e,
+            Expr::True => Expr::False,
+            Expr::False => Expr::True,
+            _ => Expr::Not(Box::new(self)),
+        }
     }
 }
 
@@ -129,8 +184,8 @@ impl fmt::Display for Expr {
             }
             Expr::Not(e) => write!(f, "¬{}", e),
             Expr::Var { id } => write!(f, "x{}", id),
-            Expr::True => write!(f, "⊤"),
-            Expr::False => write!(f, "⊥"),
+            Expr::True => write!(f, "1"),
+            Expr::False => write!(f, "0"),
         }
     }
 }
