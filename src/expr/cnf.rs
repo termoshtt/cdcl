@@ -11,9 +11,17 @@ use std::{
 /// ```rust
 /// use cdcl::CNF;
 ///
-/// // (x0 ∧ x1) ∨ x2 is not in CNF form, and normalized into (x0 ∧ x2) ∨ (x1 ∧ x2).
+/// // (x0 ∧ x1) ∨ x2 = (x0 ∨ x2) ∧ (x1 ∨ x2)
 /// let expr = (CNF::variable(0) & CNF::variable(1)) | CNF::variable(2);
-/// assert_eq!(expr.to_string(), "(x0 ∧ x2) ∨ (x1 ∧ x2)");
+/// assert_eq!(expr.to_string(), "(x0 ∨ x2) ∧ (x1 ∨ x2)");
+///
+/// // x0 ∨ (x1 ∧ x2) = (x0 ∨ x1) ∧ (x0 ∨ x2)
+/// let expr = CNF::variable(0) | (CNF::variable(1) & CNF::variable(2));
+/// assert_eq!(expr.to_string(), "(x0 ∨ x1) ∧ (x0 ∨ x2)");
+///
+/// // (x0 ∧ x1) ∨ (x2 ∧ x3) = (x0 ∨ x2) ∧ (x0 ∨ x3) ∧ (x1 ∨ x2) ∧ (x1 ∨ x3)
+/// let expr = (CNF::variable(0) & CNF::variable(1)) | (CNF::variable(2) & CNF::variable(3));
+/// assert_eq!(expr.to_string(), "(x0 ∨ x2) ∧ (x0 ∨ x3) ∧ (x1 ∨ x2) ∧ (x1 ∨ x3)");
 /// ```
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct CNF(Expr);
@@ -47,9 +55,15 @@ impl BitAnd for CNF {
 impl BitOr for CNF {
     type Output = Self;
 
-    fn bitor(self, _rhs: Self) -> Self {
+    fn bitor(self, rhs: Self) -> Self {
         // Distributive Law
-        todo!()
+        match self.0 {
+            Expr::And(lhs, lhr) => {
+                // (a ∧ b) ∨ c = (a ∨ c) ∧ (b ∨ c)
+                CNF((*lhs | rhs.0.clone()) & (*lhr | rhs.0))
+            }
+            _ => CNF(self.0 | rhs.0),
+        }
     }
 }
 
