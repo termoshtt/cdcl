@@ -1,4 +1,7 @@
-use std::ops::{BitAnd, BitOr, Not};
+use std::{
+    fmt,
+    ops::{BitAnd, BitOr, Not},
+};
 
 mod cnf;
 mod dnf;
@@ -73,5 +76,55 @@ impl Not for Expr {
     type Output = Expr;
     fn not(self) -> Self::Output {
         Expr::Not(Box::new(self))
+    }
+}
+
+impl fmt::Display for Expr {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Expr::And(lhs, rhs) => {
+                match lhs.as_ref() {
+                    Expr::Or(_, _) => write!(f, "({})", lhs)?,
+                    _ => write!(f, "{}", lhs)?,
+                }
+                write!(f, " ∧ ")?;
+                match rhs.as_ref() {
+                    Expr::Or(_, _) => write!(f, "({})", rhs),
+                    _ => write!(f, "{}", rhs),
+                }
+            }
+            Expr::Or(lhs, rhs) => {
+                match lhs.as_ref() {
+                    Expr::And(_, _) => write!(f, "({})", lhs)?,
+                    _ => write!(f, "{}", lhs)?,
+                }
+                write!(f, " ∨ ")?;
+                match rhs.as_ref() {
+                    Expr::And(_, _) => write!(f, "({})", rhs),
+                    _ => write!(f, "{}", rhs),
+                }
+            }
+            Expr::Not(e) => write!(f, "¬{}", e),
+            Expr::Var { id } => write!(f, "x{}", id),
+            Expr::True => write!(f, "⊤"),
+            Expr::False => write!(f, "⊥"),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_display() {
+        let expr = Expr::variable(0) & Expr::variable(1) | Expr::variable(2);
+        assert_eq!(expr.to_string(), "(x0 ∧ x1) ∨ x2");
+
+        let expr = Expr::variable(0) | Expr::variable(1) & Expr::variable(2);
+        assert_eq!(expr.to_string(), "x0 ∨ (x1 ∧ x2)");
+
+        let expr = !Expr::variable(0) & Expr::variable(1);
+        assert_eq!(expr.to_string(), "¬x0 ∧ x1");
     }
 }
