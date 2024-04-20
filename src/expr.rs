@@ -9,13 +9,12 @@ mod dnf;
 pub use cnf::CNF;
 pub use dnf::DNF;
 
-/// Expression in propositional (or Boolean) logic.
+/// Expression in Boolean logic.
 ///
-/// This does not assume that the expression is in conjunctive (CNF) or disjunctive normal form (DNF).
+/// This does not assume that the expression is in conjunctive ([CNF]) or disjunctive normal form ([DNF]).
 ///
-/// # Examples
-///
-/// Logical variables represented by [Expr::Var] have unique integer IDs. They are displayed as `x` followed by the ID.
+/// Logical variables is represented by [Expr::Var], and have unique integer IDs.
+/// They are displayed as `x` followed by the ID like `x0`.
 ///
 /// ```rust
 /// use cdcl::Expr;

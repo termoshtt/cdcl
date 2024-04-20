@@ -4,9 +4,7 @@ use std::{
     ops::{BitAnd, BitOr, Not},
 };
 
-/// Expression in [Conjunctive Normal Form](https://en.wikipedia.org/wiki/Conjunctive_normal_form)
-///
-/// # Examples
+/// An [Expr] in [Conjunctive Normal Form](https://en.wikipedia.org/wiki/Conjunctive_normal_form)
 ///
 /// ```rust
 /// use cdcl::CNF;
