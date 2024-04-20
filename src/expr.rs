@@ -30,7 +30,7 @@ pub use dnf::DNF;
 /// assert_eq!(expr.to_string(), "¬x0 ∧ x1");
 /// ```
 ///
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub enum Expr {
     And(Box<Expr>, Box<Expr>),
     Or(Box<Expr>, Box<Expr>),
@@ -93,6 +93,12 @@ impl Not for Expr {
     type Output = Expr;
     fn not(self) -> Self::Output {
         Expr::Not(Box::new(self))
+    }
+}
+
+impl fmt::Debug for Expr {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Display::fmt(self, f)
     }
 }
 
