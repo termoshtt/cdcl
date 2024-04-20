@@ -145,14 +145,26 @@ impl From<bool> for Expr {
 impl BitAnd for Expr {
     type Output = Expr;
     fn bitand(self, rhs: Self) -> Self::Output {
-        Expr::And(Box::new(self), Box::new(rhs))
+        match (self, rhs) {
+            (Expr::False, _) | (_, Expr::False) => Expr::False,
+            (Expr::True, x) | (x, Expr::True) => x,
+            (x, Expr::Not(y)) | (Expr::Not(y), x) if x == *y => Expr::False,
+            (lhs, rhs) if lhs == rhs => lhs,
+            (lhs, rhs) => Expr::And(Box::new(lhs), Box::new(rhs)),
+        }
     }
 }
 
 impl BitOr for Expr {
     type Output = Expr;
     fn bitor(self, rhs: Self) -> Self::Output {
-        Expr::Or(Box::new(self), Box::new(rhs))
+        match (self, rhs) {
+            (Expr::True, _) | (_, Expr::True) => Expr::True,
+            (Expr::False, x) | (x, Expr::False) => x,
+            (x, Expr::Not(y)) | (Expr::Not(y), x) if x == *y => Expr::True,
+            (lhs, rhs) if lhs == rhs => lhs,
+            (lhs, rhs) => Expr::Or(Box::new(lhs), Box::new(rhs)),
+        }
     }
 }
 
