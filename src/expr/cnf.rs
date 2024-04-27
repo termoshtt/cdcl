@@ -88,7 +88,7 @@ impl Not for CNF {
         // De Morgan's Law
         match self.0 {
             Expr::And(inner) => todo!(),
-            Expr::Or(a, b) => CNF(!*a & !*b),
+            Expr::Or(inner) => todo!(),
             a => CNF(!a),
         }
     }

@@ -48,7 +48,7 @@ pub use dnf::DNF;
 /// use cdcl::Expr;
 ///
 /// let expr = Expr::variable(0) & Expr::variable(1) | Expr::variable(2);
-/// assert_eq!(expr.to_string(), "(x0 ∧ x1) ∨ x2");
+/// assert_eq!(expr.to_string(), "x2 ∨ (x0 ∧ x1)");
 ///
 /// let expr = Expr::variable(0) | Expr::variable(1) & Expr::variable(2);
 /// assert_eq!(expr.to_string(), "x0 ∨ (x1 ∧ x2)");
@@ -135,7 +135,7 @@ pub use dnf::DNF;
 pub enum Expr {
     /// Conjunction of expressions. Since `AND` is commutative, the expressions are sorted.
     And(Vec<Expr>),
-    Or(Box<Expr>, Box<Expr>),
+    Or(Vec<Expr>),
     Not(Box<Expr>),
 
     /// Propositional variable.
@@ -199,11 +199,17 @@ impl PartialOrd for Expr {
             (Expr::Var { .. }, _) => Some(Ordering::Less),
             (_, Expr::Var { .. }) => Some(Ordering::Greater),
 
-            (Expr::And(lhs), Expr::And(rhs)) => lhs.partial_cmp(rhs), // Vec is graded lexically by default
+            (Expr::And(lhs), Expr::And(rhs)) if lhs.len() != rhs.len() => {
+                lhs.len().partial_cmp(&rhs.len())
+            }
+            (Expr::And(lhs), Expr::And(rhs)) => lhs.partial_cmp(rhs),
             (Expr::And(_), _) => Some(Ordering::Less),
             (_, Expr::And(_)) => Some(Ordering::Greater),
 
-            (Expr::Or(lhs, rhs), Expr::Or(lhso, rhso)) => todo!(),
+            (Expr::Or(lhs), Expr::Or(rhs)) if lhs.len() != rhs.len() => {
+                lhs.len().partial_cmp(&rhs.len())
+            }
+            (Expr::Or(lhs), Expr::Or(rhs)) => lhs.partial_cmp(rhs),
         }
     }
 }
@@ -243,7 +249,21 @@ impl BitOr for Expr {
             (Expr::False, x) | (x, Expr::False) => x,
             (x, Expr::Not(y)) | (Expr::Not(y), x) if x == *y => Expr::True,
             (lhs, rhs) if lhs == rhs => lhs,
-            (lhs, rhs) => Expr::Or(Box::new(lhs), Box::new(rhs)),
+            (Expr::Or(mut lhs), Expr::Or(mut rhs)) => {
+                lhs.append(&mut rhs);
+                lhs.sort_unstable();
+                Expr::Or(lhs)
+            }
+            (Expr::Or(mut a), b) | (b, Expr::Or(mut a)) => {
+                a.push(b);
+                a.sort_unstable();
+                Expr::Or(a)
+            }
+            (lhs, rhs) => Expr::Or(if lhs < rhs {
+                vec![lhs, rhs]
+            } else {
+                vec![rhs, lhs]
+            }),
         }
     }
 }
@@ -276,22 +296,23 @@ impl fmt::Display for Expr {
                         write!(f, " ∧ ")?;
                     }
                     match e {
-                        Expr::Or(_, _) => write!(f, "({})", e)?,
+                        Expr::Or(_) => write!(f, "({})", e)?,
                         _ => write!(f, "{}", e)?,
                     }
                 }
                 Ok(())
             }
-            Expr::Or(lhs, rhs) => {
-                match lhs.as_ref() {
-                    Expr::And(_) => write!(f, "({})", lhs)?,
-                    _ => write!(f, "{}", lhs)?,
+            Expr::Or(inner) => {
+                for (i, e) in inner.iter().enumerate() {
+                    if i != 0 {
+                        write!(f, " ∨ ")?;
+                    }
+                    match e {
+                        Expr::And(_) => write!(f, "({})", e)?,
+                        _ => write!(f, "{}", e)?,
+                    }
                 }
-                write!(f, " ∨ ")?;
-                match rhs.as_ref() {
-                    Expr::And(_) => write!(f, "({})", rhs),
-                    _ => write!(f, "{}", rhs),
-                }
+                Ok(())
             }
             Expr::Not(e) => write!(f, "¬{}", e),
             Expr::Var { id } => write!(f, "x{}", id),
