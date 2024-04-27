@@ -1,3 +1,4 @@
+use crate::State;
 use std::{
     fmt,
     ops::{BitAnd, BitOr, Not},
@@ -186,6 +187,15 @@ impl Expr {
             Expr::Not(e) => e.height() + 1,
             _ => 1,
         }
+    }
+
+    pub fn partial_eval(&self, state: &State) -> Expr {
+        todo!()
+    }
+
+    /// IDs of using variables in the expression.
+    pub fn variables(&self) -> Vec<usize> {
+        todo!()
     }
 
     /// Returns the conjunctive normal form of the expression.
