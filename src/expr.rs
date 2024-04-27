@@ -131,7 +131,7 @@ pub use dnf::DNF;
 /// assert!(Expr::variable(1) & Expr::variable(2) < Expr::variable(0) & Expr::variable(1) & Expr::variable(2));
 /// ```
 ///
-#[derive(Clone, PartialEq, Eq, Ord, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub enum Expr {
     /// Conjunction of expressions. Since `AND` is commutative, the expressions are sorted.
     And(Vec<Expr>),
@@ -179,37 +179,39 @@ impl From<bool> for Expr {
 
 impl PartialOrd for Expr {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for Expr {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         use std::cmp::Ordering;
         match (self, other) {
             // Bool literals are smaller than others, and False is smallest
-            (Expr::False, Expr::False) | (Expr::True, Expr::True) => Some(Ordering::Equal),
-            (Expr::False, _) => Some(Ordering::Less),
-            (_, Expr::False) => Some(Ordering::Greater),
-            (Expr::True, _) => Some(Ordering::Less),
-            (_, Expr::True) => Some(Ordering::Greater),
+            (Expr::False, Expr::False) | (Expr::True, Expr::True) => Ordering::Equal,
+            (Expr::False, _) => Ordering::Less,
+            (_, Expr::False) => Ordering::Greater,
+            (Expr::True, _) => Ordering::Less,
+            (_, Expr::True) => Ordering::Greater,
 
             // NOT of any expression is next to the expression
-            (Expr::Not(a), Expr::Not(b)) => a.partial_cmp(b),
-            (Expr::Not(a), b) if a.as_ref() == b => Some(Ordering::Greater),
-            (Expr::Not(a), b) => a.as_ref().partial_cmp(b),
-            (a, Expr::Not(b)) if a == b.as_ref() => Some(Ordering::Less),
-            (a, Expr::Not(b)) => a.partial_cmp(b),
+            (Expr::Not(a), Expr::Not(b)) => a.cmp(b),
+            (Expr::Not(a), b) if a.as_ref() == b => Ordering::Greater,
+            (Expr::Not(a), b) => a.as_ref().cmp(b),
+            (a, Expr::Not(b)) if a == b.as_ref() => Ordering::Less,
+            (a, Expr::Not(b)) => a.cmp(b),
 
-            (Expr::Var { id: a }, Expr::Var { id: b }) => a.partial_cmp(b),
-            (Expr::Var { .. }, _) => Some(Ordering::Less),
-            (_, Expr::Var { .. }) => Some(Ordering::Greater),
+            (Expr::Var { id: a }, Expr::Var { id: b }) => a.cmp(b),
+            (Expr::Var { .. }, _) => Ordering::Less,
+            (_, Expr::Var { .. }) => Ordering::Greater,
 
-            (Expr::And(lhs), Expr::And(rhs)) if lhs.len() != rhs.len() => {
-                lhs.len().partial_cmp(&rhs.len())
-            }
-            (Expr::And(lhs), Expr::And(rhs)) => lhs.partial_cmp(rhs),
-            (Expr::And(_), _) => Some(Ordering::Less),
-            (_, Expr::And(_)) => Some(Ordering::Greater),
+            (Expr::And(lhs), Expr::And(rhs)) if lhs.len() != rhs.len() => lhs.len().cmp(&rhs.len()),
+            (Expr::And(lhs), Expr::And(rhs)) => lhs.cmp(rhs),
+            (Expr::And(_), _) => Ordering::Less,
+            (_, Expr::And(_)) => Ordering::Greater,
 
-            (Expr::Or(lhs), Expr::Or(rhs)) if lhs.len() != rhs.len() => {
-                lhs.len().partial_cmp(&rhs.len())
-            }
-            (Expr::Or(lhs), Expr::Or(rhs)) => lhs.partial_cmp(rhs),
+            (Expr::Or(lhs), Expr::Or(rhs)) if lhs.len() != rhs.len() => lhs.len().cmp(&rhs.len()),
+            (Expr::Or(lhs), Expr::Or(rhs)) => lhs.cmp(rhs),
         }
     }
 }
