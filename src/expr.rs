@@ -48,13 +48,19 @@ pub use dnf::DNF;
 /// use cdcl::Expr;
 ///
 /// let expr = Expr::variable(0) & Expr::variable(1) | Expr::variable(2);
-/// assert_eq!(expr.to_string(), "(x0 ∧ x1) ∨ x2");
+/// assert_eq!(expr.to_string(), "x2 ∨ (x0 ∧ x1)");
 ///
 /// let expr = Expr::variable(0) | Expr::variable(1) & Expr::variable(2);
 /// assert_eq!(expr.to_string(), "x0 ∨ (x1 ∧ x2)");
 ///
 /// let expr = !Expr::variable(0) & Expr::variable(1);
 /// assert_eq!(expr.to_string(), "¬x0 ∧ x1");
+///
+/// // AND and OR expressions are automatically sorted
+/// let expr = Expr::variable(2) & Expr::variable(0) & !Expr::variable(1);
+/// assert_eq!(expr.to_string(), "x0 ∧ ¬x1 ∧ x2");
+/// let expr = Expr::variable(2) | Expr::variable(0) | !Expr::variable(1);
+/// assert_eq!(expr.to_string(), "x0 ∨ ¬x1 ∨ x2");
 /// ```
 ///
 /// Different from [CNF] and [DNF], these expressions are kept as created except for following cases:
@@ -96,10 +102,40 @@ pub use dnf::DNF;
 /// assert_eq!(Expr::variable(0) & Expr::False, Expr::False);
 /// ```
 ///
+/// The expressions have ordering as following:
+///
+/// ```rust
+/// use cdcl::Expr;
+///
+/// // Bool literals are smaller than others, and False is smallest
+/// assert!(Expr::False < Expr::True);
+/// assert!(Expr::True < Expr::variable(0));
+/// assert!(Expr::True < Expr::variable(0) & Expr::variable(1));
+/// assert!(Expr::True < Expr::variable(0) | Expr::variable(1));
+/// assert!(Expr::True < !Expr::variable(0));
+///
+/// // Smaller variable ID is smaller
+/// assert!(Expr::variable(0) < Expr::variable(1));
+///
+/// // NOT of any expression is next to the expression
+/// assert!(Expr::variable(0) < !Expr::variable(0));
+/// assert!(!Expr::variable(0) < Expr::variable(1));
+///
+/// // AND is smaller than OR
+/// assert!(Expr::variable(0) & Expr::variable(1) < Expr::variable(0) | Expr::variable(1));
+///
+/// // AND and OR expressions have graded lexical ordering
+/// // lexical order for same rank AND
+/// assert!(Expr::variable(0) & Expr::variable(1) < Expr::variable(0) & Expr::variable(2));
+/// // rank-2 AND is smaller than rank-3 AND
+/// assert!(Expr::variable(1) & Expr::variable(2) < Expr::variable(0) & Expr::variable(1) & Expr::variable(2));
+/// ```
+///
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub enum Expr {
-    And(Box<Expr>, Box<Expr>),
-    Or(Box<Expr>, Box<Expr>),
+    /// Conjunction of expressions. Since `AND` is commutative, the expressions are sorted.
+    And(Vec<Expr>),
+    Or(Vec<Expr>),
     Not(Box<Expr>),
 
     /// Propositional variable.
@@ -141,6 +177,45 @@ impl From<bool> for Expr {
     }
 }
 
+impl PartialOrd for Expr {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for Expr {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        use std::cmp::Ordering;
+        match (self, other) {
+            // Bool literals are smaller than others, and False is smallest
+            (Expr::False, Expr::False) | (Expr::True, Expr::True) => Ordering::Equal,
+            (Expr::False, _) => Ordering::Less,
+            (_, Expr::False) => Ordering::Greater,
+            (Expr::True, _) => Ordering::Less,
+            (_, Expr::True) => Ordering::Greater,
+
+            // NOT of any expression is next to the expression
+            (Expr::Not(a), Expr::Not(b)) => a.cmp(b),
+            (Expr::Not(a), b) if a.as_ref() == b => Ordering::Greater,
+            (Expr::Not(a), b) => a.as_ref().cmp(b),
+            (a, Expr::Not(b)) if a == b.as_ref() => Ordering::Less,
+            (a, Expr::Not(b)) => a.cmp(b),
+
+            (Expr::Var { id: a }, Expr::Var { id: b }) => a.cmp(b),
+            (Expr::Var { .. }, _) => Ordering::Less,
+            (_, Expr::Var { .. }) => Ordering::Greater,
+
+            (Expr::And(lhs), Expr::And(rhs)) if lhs.len() != rhs.len() => lhs.len().cmp(&rhs.len()),
+            (Expr::And(lhs), Expr::And(rhs)) => lhs.cmp(rhs),
+            (Expr::And(_), _) => Ordering::Less,
+            (_, Expr::And(_)) => Ordering::Greater,
+
+            (Expr::Or(lhs), Expr::Or(rhs)) if lhs.len() != rhs.len() => lhs.len().cmp(&rhs.len()),
+            (Expr::Or(lhs), Expr::Or(rhs)) => lhs.cmp(rhs),
+        }
+    }
+}
+
 impl BitAnd for Expr {
     type Output = Expr;
     fn bitand(self, rhs: Self) -> Self::Output {
@@ -149,7 +224,21 @@ impl BitAnd for Expr {
             (Expr::True, x) | (x, Expr::True) => x,
             (x, Expr::Not(y)) | (Expr::Not(y), x) if x == *y => Expr::False,
             (lhs, rhs) if lhs == rhs => lhs,
-            (lhs, rhs) => Expr::And(Box::new(lhs), Box::new(rhs)),
+            (Expr::And(mut lhs), Expr::And(mut rhs)) => {
+                lhs.append(&mut rhs);
+                lhs.sort_unstable();
+                Expr::And(lhs)
+            }
+            (Expr::And(mut a), b) | (b, Expr::And(mut a)) => {
+                a.push(b);
+                a.sort_unstable();
+                Expr::And(a)
+            }
+            (lhs, rhs) => Expr::And(if lhs < rhs {
+                vec![lhs, rhs]
+            } else {
+                vec![rhs, lhs]
+            }),
         }
     }
 }
@@ -162,7 +251,21 @@ impl BitOr for Expr {
             (Expr::False, x) | (x, Expr::False) => x,
             (x, Expr::Not(y)) | (Expr::Not(y), x) if x == *y => Expr::True,
             (lhs, rhs) if lhs == rhs => lhs,
-            (lhs, rhs) => Expr::Or(Box::new(lhs), Box::new(rhs)),
+            (Expr::Or(mut lhs), Expr::Or(mut rhs)) => {
+                lhs.append(&mut rhs);
+                lhs.sort_unstable();
+                Expr::Or(lhs)
+            }
+            (Expr::Or(mut a), b) | (b, Expr::Or(mut a)) => {
+                a.push(b);
+                a.sort_unstable();
+                Expr::Or(a)
+            }
+            (lhs, rhs) => Expr::Or(if lhs < rhs {
+                vec![lhs, rhs]
+            } else {
+                vec![rhs, lhs]
+            }),
         }
     }
 }
@@ -189,27 +292,29 @@ impl fmt::Debug for Expr {
 impl fmt::Display for Expr {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Expr::And(lhs, rhs) => {
-                match lhs.as_ref() {
-                    Expr::Or(_, _) => write!(f, "({})", lhs)?,
-                    _ => write!(f, "{}", lhs)?,
+            Expr::And(inner) => {
+                for (i, e) in inner.iter().enumerate() {
+                    if i != 0 {
+                        write!(f, " ∧ ")?;
+                    }
+                    match e {
+                        Expr::Or(_) => write!(f, "({})", e)?,
+                        _ => write!(f, "{}", e)?,
+                    }
                 }
-                write!(f, " ∧ ")?;
-                match rhs.as_ref() {
-                    Expr::Or(_, _) => write!(f, "({})", rhs),
-                    _ => write!(f, "{}", rhs),
-                }
+                Ok(())
             }
-            Expr::Or(lhs, rhs) => {
-                match lhs.as_ref() {
-                    Expr::And(_, _) => write!(f, "({})", lhs)?,
-                    _ => write!(f, "{}", lhs)?,
+            Expr::Or(inner) => {
+                for (i, e) in inner.iter().enumerate() {
+                    if i != 0 {
+                        write!(f, " ∨ ")?;
+                    }
+                    match e {
+                        Expr::And(_) => write!(f, "({})", e)?,
+                        _ => write!(f, "{}", e)?,
+                    }
                 }
-                write!(f, " ∨ ")?;
-                match rhs.as_ref() {
-                    Expr::And(_, _) => write!(f, "({})", rhs),
-                    _ => write!(f, "{}", rhs),
-                }
+                Ok(())
             }
             Expr::Not(e) => write!(f, "¬{}", e),
             Expr::Var { id } => write!(f, "x{}", id),

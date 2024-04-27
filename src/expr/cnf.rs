@@ -64,17 +64,21 @@ impl BitOr for CNF {
     fn bitor(self, rhs: Self) -> Self {
         // Distributive Law
         match (self.0, rhs.0) {
-            (Expr::And(a, b), Expr::And(c, d)) => {
+            (Expr::And(lhs), Expr::And(rhs)) => {
                 // (a ∧ b) ∨ (c ∧ d) = (a ∨ c) ∧ (a ∨ d) ∧ (b ∨ c) ∧ (b ∨ d)
-                CNF((*a.clone() | *c.clone()) & (*a | *d.clone()) & (*b.clone() | *c) & (*b | *d))
+                let mut result = Vec::new();
+                for a in &lhs {
+                    for b in &rhs {
+                        result.push(a.clone() | b.clone());
+                    }
+                }
+                CNF(Expr::And(result))
             }
-            (Expr::And(a, b), c) => {
+            (Expr::And(inner), c) | (c, Expr::And(inner)) => {
                 // (a ∧ b) ∨ c = (a ∨ c) ∧ (b ∨ c)
-                CNF((*a | c.clone()) & (*b | c))
-            }
-            (a, Expr::And(c, d)) => {
-                // a ∨ (c ∧ d) = (a ∨ c) ∧ (a ∨ d)
-                CNF((a.clone() | *c) & (a | *d))
+                CNF(Expr::And(
+                    inner.into_iter().map(|a| a | c.clone()).collect(),
+                ))
             }
             (lhs, rhs) => CNF(lhs | rhs),
         }
@@ -87,8 +91,8 @@ impl Not for CNF {
     fn not(self) -> Self {
         // De Morgan's Law
         match self.0 {
-            Expr::And(a, b) => CNF(!*a | !*b),
-            Expr::Or(a, b) => CNF(!*a & !*b),
+            Expr::And(inner) => CNF(Expr::Or(inner.into_iter().map(Not::not).collect())),
+            Expr::Or(inner) => CNF(Expr::And(inner.into_iter().map(Not::not).collect())),
             a => CNF(!a),
         }
     }
