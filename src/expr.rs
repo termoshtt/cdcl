@@ -155,6 +155,39 @@ impl Expr {
         Expr::Var { id }
     }
 
+    /// Height of the expression.
+    ///
+    /// ```rust
+    /// use cdcl::Expr;
+    ///
+    /// // Height of a variable and a literal is `1`
+    /// assert_eq!(Expr::True.height(), 1);
+    /// assert_eq!(Expr::variable(0).height(), 1);
+    ///
+    /// // Height of a NOT expression is `2`
+    /// assert_eq!((!Expr::variable(0)).height(), 2);
+    ///
+    /// // Since the AND and OR expressions are flatten, their height is the maximum height of the children plus 1
+    /// assert_eq!((Expr::variable(0) & Expr::variable(1)).height(), 2);
+    /// assert_eq!((Expr::variable(0) & Expr::variable(1) & Expr::variable(2)).height(), 2);
+    /// assert_eq!((Expr::variable(0) | Expr::variable(1)).height(), 2);
+    /// assert_eq!((Expr::variable(0) | Expr::variable(1) | Expr::variable(2)).height(), 2);
+    ///
+    /// // Height of a nested expression
+    /// assert_eq!((Expr::variable(0) & (Expr::variable(1) | Expr::variable(2))).height(), 3);
+    /// assert_eq!((Expr::variable(0) & (Expr::variable(1) | !Expr::variable(2))).height(), 4);
+    /// ```
+    ///
+    pub fn height(&self) -> usize {
+        match self {
+            Expr::And(inner) | Expr::Or(inner) => {
+                inner.iter().map(|e| e.height()).max().unwrap_or(0) + 1
+            }
+            Expr::Not(e) => e.height() + 1,
+            _ => 1,
+        }
+    }
+
     /// Returns the conjunctive normal form of the expression.
     pub fn cnf(self) -> Expr {
         todo!()
