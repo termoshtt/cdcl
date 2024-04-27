@@ -221,15 +221,10 @@ impl BitAnd for Expr {
                 lhs.sort_unstable();
                 Expr::And(lhs)
             }
-            (Expr::And(mut lhs), rhs) => {
-                lhs.push(rhs);
-                lhs.sort_unstable();
-                Expr::And(lhs)
-            }
-            (lhs, Expr::And(mut rhs)) => {
-                rhs.insert(0, lhs);
-                rhs.sort_unstable();
-                Expr::And(rhs)
+            (Expr::And(mut a), b) | (b, Expr::And(mut a)) => {
+                a.push(b);
+                a.sort_unstable();
+                Expr::And(a)
             }
             (lhs, rhs) => Expr::And(if lhs < rhs {
                 vec![lhs, rhs]
