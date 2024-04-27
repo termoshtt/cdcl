@@ -96,8 +96,38 @@ pub use dnf::DNF;
 /// assert_eq!(Expr::variable(0) & Expr::False, Expr::False);
 /// ```
 ///
-#[derive(Clone, PartialEq, Eq, Hash)]
+/// The expressions have ordering as following:
+///
+/// ```rust
+/// use cdcl::Expr;
+///
+/// // Bool literals are smaller than others, and False is smallest
+/// assert!(Expr::False < Expr::True);
+/// assert!(Expr::True < Expr::variable(0));
+/// assert!(Expr::True < Expr::variable(0) & Expr::variable(1));
+/// assert!(Expr::True < Expr::variable(0) | Expr::variable(1));
+/// assert!(Expr::True < !Expr::variable(0));
+///
+/// // Smaller variable ID is smaller
+/// assert!(Expr::variable(0) < Expr::variable(1));
+///
+/// // NOT of any expression is next to the expression
+/// assert!(Expr::variable(0) < !Expr::variable(0));
+/// assert!(!Expr::variable(0) < Expr::variable(1));
+///
+/// // AND is smaller than OR
+/// assert!(Expr::variable(0) & Expr::variable(1) < Expr::variable(0) | Expr::variable(1));
+///
+/// // AND and OR expressions have graded lexical ordering
+/// // lexical order for same rank AND
+/// assert!(Expr::variable(0) & Expr::variable(1) < Expr::variable(0) & Expr::variable(2));
+/// // rank-2 AND is smaller than rank-3 AND
+/// assert!(Expr::variable(1) & Expr::variable(2) < Expr::variable(0) & Expr::variable(1) & Expr::variable(2));
+/// ```
+///
+#[derive(Clone, PartialEq, Eq, Ord, Hash)]
 pub enum Expr {
+    /// Conjunction of expressions. Since `AND` is commutative, the expressions are sorted.
     And(Vec<Expr>),
     Or(Box<Expr>, Box<Expr>),
     Not(Box<Expr>),
@@ -137,6 +167,37 @@ impl From<bool> for Expr {
             Expr::True
         } else {
             Expr::False
+        }
+    }
+}
+
+impl PartialOrd for Expr {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        use std::cmp::Ordering;
+        match (self, other) {
+            // Bool literals are smaller than others, and False is smallest
+            (Expr::False, Expr::False) | (Expr::True, Expr::True) => Some(Ordering::Equal),
+            (Expr::False, _) => Some(Ordering::Less),
+            (_, Expr::False) => Some(Ordering::Greater),
+            (Expr::True, _) => Some(Ordering::Less),
+            (_, Expr::True) => Some(Ordering::Greater),
+
+            // NOT of any expression is next to the expression
+            (Expr::Not(a), Expr::Not(b)) => a.partial_cmp(b),
+            (Expr::Not(a), b) if a.as_ref() == b => Some(Ordering::Greater),
+            (Expr::Not(a), b) => a.as_ref().partial_cmp(b),
+            (a, Expr::Not(b)) if a == b.as_ref() => Some(Ordering::Less),
+            (a, Expr::Not(b)) => a.partial_cmp(b),
+
+            (Expr::Var { id: a }, Expr::Var { id: b }) => a.partial_cmp(b),
+            (Expr::Var { .. }, _) => Some(Ordering::Less),
+            (_, Expr::Var { .. }) => Some(Ordering::Greater),
+
+            (Expr::And(lhs), Expr::And(rhs)) => lhs.partial_cmp(rhs), // Vec is graded lexically by default
+            (Expr::And(_), _) => Some(Ordering::Less),
+            (_, Expr::And(_)) => Some(Ordering::Greater),
+
+            (Expr::Or(lhs, rhs), Expr::Or(lhso, rhso)) => todo!(),
         }
     }
 }
