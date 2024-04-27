@@ -66,15 +66,19 @@ impl BitOr for CNF {
         match (self.0, rhs.0) {
             (Expr::And(lhs), Expr::And(rhs)) => {
                 // (a ∧ b) ∨ (c ∧ d) = (a ∨ c) ∧ (a ∨ d) ∧ (b ∨ c) ∧ (b ∨ d)
-                todo!()
+                let mut result = Vec::new();
+                for a in &lhs {
+                    for b in &rhs {
+                        result.push(a.clone() | b.clone());
+                    }
+                }
+                CNF(Expr::And(result))
             }
-            (Expr::And(lhs), c) => {
+            (Expr::And(inner), c) | (c, Expr::And(inner)) => {
                 // (a ∧ b) ∨ c = (a ∨ c) ∧ (b ∨ c)
-                todo!()
-            }
-            (a, Expr::And(rhs)) => {
-                // a ∨ (c ∧ d) = (a ∨ c) ∧ (a ∨ d)
-                todo!()
+                CNF(Expr::And(
+                    inner.into_iter().map(|a| a | c.clone()).collect(),
+                ))
             }
             (lhs, rhs) => CNF(lhs | rhs),
         }
@@ -87,8 +91,8 @@ impl Not for CNF {
     fn not(self) -> Self {
         // De Morgan's Law
         match self.0 {
-            Expr::And(inner) => todo!(),
-            Expr::Or(inner) => todo!(),
+            Expr::And(inner) => CNF(Expr::Or(inner.into_iter().map(Not::not).collect())),
+            Expr::Or(inner) => CNF(Expr::And(inner.into_iter().map(Not::not).collect())),
             a => CNF(!a),
         }
     }
