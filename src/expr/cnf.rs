@@ -64,17 +64,17 @@ impl BitOr for CNF {
     fn bitor(self, rhs: Self) -> Self {
         // Distributive Law
         match (self.0, rhs.0) {
-            (Expr::And(a, b), Expr::And(c, d)) => {
+            (Expr::And(lhs), Expr::And(rhs)) => {
                 // (a ∧ b) ∨ (c ∧ d) = (a ∨ c) ∧ (a ∨ d) ∧ (b ∨ c) ∧ (b ∨ d)
-                CNF((*a.clone() | *c.clone()) & (*a | *d.clone()) & (*b.clone() | *c) & (*b | *d))
+                todo!()
             }
-            (Expr::And(a, b), c) => {
+            (Expr::And(lhs), c) => {
                 // (a ∧ b) ∨ c = (a ∨ c) ∧ (b ∨ c)
-                CNF((*a | c.clone()) & (*b | c))
+                todo!()
             }
-            (a, Expr::And(c, d)) => {
+            (a, Expr::And(rhs)) => {
                 // a ∨ (c ∧ d) = (a ∨ c) ∧ (a ∨ d)
-                CNF((a.clone() | *c) & (a | *d))
+                todo!()
             }
             (lhs, rhs) => CNF(lhs | rhs),
         }
@@ -87,7 +87,7 @@ impl Not for CNF {
     fn not(self) -> Self {
         // De Morgan's Law
         match self.0 {
-            Expr::And(a, b) => CNF(!*a | !*b),
+            Expr::And(inner) => todo!(),
             Expr::Or(a, b) => CNF(!*a & !*b),
             a => CNF(!a),
         }

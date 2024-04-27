@@ -98,7 +98,7 @@ pub use dnf::DNF;
 ///
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub enum Expr {
-    And(Box<Expr>, Box<Expr>),
+    And(Vec<Expr>),
     Or(Box<Expr>, Box<Expr>),
     Not(Box<Expr>),
 
@@ -149,7 +149,19 @@ impl BitAnd for Expr {
             (Expr::True, x) | (x, Expr::True) => x,
             (x, Expr::Not(y)) | (Expr::Not(y), x) if x == *y => Expr::False,
             (lhs, rhs) if lhs == rhs => lhs,
-            (lhs, rhs) => Expr::And(Box::new(lhs), Box::new(rhs)),
+            (Expr::And(mut lhs), Expr::And(mut rhs)) => {
+                lhs.append(&mut rhs);
+                Expr::And(lhs)
+            }
+            (Expr::And(mut lhs), rhs) => {
+                lhs.push(rhs);
+                Expr::And(lhs)
+            }
+            (lhs, Expr::And(mut rhs)) => {
+                rhs.insert(0, lhs);
+                Expr::And(rhs)
+            }
+            (lhs, rhs) => Expr::And(vec![lhs, rhs]),
         }
     }
 }
@@ -189,25 +201,26 @@ impl fmt::Debug for Expr {
 impl fmt::Display for Expr {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Expr::And(lhs, rhs) => {
-                match lhs.as_ref() {
-                    Expr::Or(_, _) => write!(f, "({})", lhs)?,
-                    _ => write!(f, "{}", lhs)?,
+            Expr::And(inner) => {
+                for (i, e) in inner.iter().enumerate() {
+                    if i != 0 {
+                        write!(f, " ∧ ")?;
+                    }
+                    match e {
+                        Expr::Or(_, _) => write!(f, "({})", e)?,
+                        _ => write!(f, "{}", e)?,
+                    }
                 }
-                write!(f, " ∧ ")?;
-                match rhs.as_ref() {
-                    Expr::Or(_, _) => write!(f, "({})", rhs),
-                    _ => write!(f, "{}", rhs),
-                }
+                Ok(())
             }
             Expr::Or(lhs, rhs) => {
                 match lhs.as_ref() {
-                    Expr::And(_, _) => write!(f, "({})", lhs)?,
+                    Expr::And(_) => write!(f, "({})", lhs)?,
                     _ => write!(f, "{}", lhs)?,
                 }
                 write!(f, " ∨ ")?;
                 match rhs.as_ref() {
-                    Expr::And(_, _) => write!(f, "({})", rhs),
+                    Expr::And(_) => write!(f, "({})", rhs),
                     _ => write!(f, "{}", rhs),
                 }
             }
