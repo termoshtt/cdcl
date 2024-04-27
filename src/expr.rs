@@ -55,6 +55,12 @@ pub use dnf::DNF;
 ///
 /// let expr = !Expr::variable(0) & Expr::variable(1);
 /// assert_eq!(expr.to_string(), "¬x0 ∧ x1");
+///
+/// // AND and OR expressions are automatically sorted
+/// let expr = Expr::variable(2) & Expr::variable(0) & !Expr::variable(1);
+/// assert_eq!(expr.to_string(), "x0 ∧ ¬x1 ∧ x2");
+/// let expr = Expr::variable(2) | Expr::variable(0) | !Expr::variable(1);
+/// assert_eq!(expr.to_string(), "x0 ∨ ¬x1 ∨ x2");
 /// ```
 ///
 /// Different from [CNF] and [DNF], these expressions are kept as created except for following cases:
@@ -212,17 +218,24 @@ impl BitAnd for Expr {
             (lhs, rhs) if lhs == rhs => lhs,
             (Expr::And(mut lhs), Expr::And(mut rhs)) => {
                 lhs.append(&mut rhs);
+                lhs.sort_unstable();
                 Expr::And(lhs)
             }
             (Expr::And(mut lhs), rhs) => {
                 lhs.push(rhs);
+                lhs.sort_unstable();
                 Expr::And(lhs)
             }
             (lhs, Expr::And(mut rhs)) => {
                 rhs.insert(0, lhs);
+                rhs.sort_unstable();
                 Expr::And(rhs)
             }
-            (lhs, rhs) => Expr::And(vec![lhs, rhs]),
+            (lhs, rhs) => Expr::And(if lhs < rhs {
+                vec![lhs, rhs]
+            } else {
+                vec![rhs, lhs]
+            }),
         }
     }
 }
