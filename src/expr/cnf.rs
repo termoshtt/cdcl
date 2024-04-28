@@ -37,6 +37,32 @@ impl CNF {
         CNF(Expr::Var { id })
     }
 
+    /// Clauses in AND expression
+    ///
+    /// ```rust
+    /// use cdcl::{CNF, Expr};
+    ///
+    /// // (x0 ∧ x1) ∨ x2 = (x0 ∨ x2) ∧ (x1 ∨ x2)
+    /// let expr = (CNF::variable(0) & CNF::variable(1)) | CNF::variable(2);
+    /// let clauses = expr.clauses().cloned().collect::<Vec<Expr>>();
+    /// assert_eq!(
+    ///     clauses,
+    ///     vec![
+    ///         Expr::variable(0) | Expr::variable(2), // x0 ∨ x2
+    ///         Expr::variable(1) | Expr::variable(2)  // x1 ∨ x2
+    ///     ]
+    /// );
+    ///
+    /// // Non-AND expression is a single clause
+    /// let expr = CNF::variable(0);
+    /// let clauses = expr.clauses().cloned().collect::<Vec<Expr>>();
+    /// assert_eq!(clauses, vec![Expr::variable(0)]);
+    ///
+    /// let expr = CNF::variable(0) | CNF::variable(1);
+    /// let clauses = expr.clauses().cloned().collect::<Vec<Expr>>();
+    /// assert_eq!(clauses, vec![Expr::variable(0) | Expr::variable(1)]);
+    /// ```
+    ///
     pub fn clauses(&self) -> Box<dyn Iterator<Item = &Expr> + '_> {
         match &self.0 {
             Expr::And(inner) => Box::new(inner.into_iter()),

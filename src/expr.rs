@@ -1,5 +1,7 @@
 use crate::State;
+use maplit::btreeset;
 use std::{
+    collections::BTreeSet,
     fmt,
     ops::{BitAnd, BitOr, Not},
 };
@@ -194,8 +196,15 @@ impl Expr {
     }
 
     /// IDs of using variables in the expression.
-    pub fn variables(&self) -> Vec<usize> {
-        todo!()
+    pub fn variables(&self) -> BTreeSet<usize> {
+        match self {
+            Expr::Var { id } => btreeset![*id],
+            Expr::Not(e) => e.variables(),
+            Expr::And(inner) | Expr::Or(inner) => {
+                inner.iter().flat_map(|e| e.variables()).collect()
+            }
+            _ => Default::default(),
+        }
     }
 
     /// Returns the conjunctive normal form of the expression.
