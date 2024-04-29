@@ -23,3 +23,23 @@ pub fn brute_force(input: CNF) -> Option<State> {
 
     None
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use maplit::btreemap;
+
+    #[test]
+    fn test_brute_force() {
+        // Boolean literals
+        assert_eq!(brute_force(CNF::from(true)), Some(State::default()));
+        assert_eq!(brute_force(CNF::from(false)), None);
+
+        // Single variable
+        assert_eq!(brute_force(CNF::variable(3)), Some(btreemap! { 3 => true }));
+        assert_eq!(
+            brute_force(!CNF::variable(3)),
+            Some(btreemap! { 3 => false })
+        );
+    }
+}
