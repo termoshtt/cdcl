@@ -1,5 +1,6 @@
 use super::Expr;
 use std::{
+    collections::BTreeSet,
     fmt,
     ops::{BitAnd, BitOr, Not},
 };
@@ -36,6 +37,12 @@ impl std::ops::Deref for CNF {
     type Target = Expr;
     fn deref(&self) -> &Self::Target {
         &self.0
+    }
+}
+
+impl From<bool> for CNF {
+    fn from(value: bool) -> Self {
+        CNF(Expr::from(value))
     }
 }
 
@@ -114,10 +121,10 @@ impl BitOr for CNF {
         match (self.0, rhs.0) {
             (Expr::And(lhs), Expr::And(rhs)) => {
                 // (a ∧ b) ∨ (c ∧ d) = (a ∨ c) ∧ (a ∨ d) ∧ (b ∨ c) ∧ (b ∨ d)
-                let mut result = Vec::new();
+                let mut result = BTreeSet::new();
                 for a in &lhs {
                     for b in &rhs {
-                        result.push(a.clone() | b.clone());
+                        result.insert(a.clone() | b.clone());
                     }
                 }
                 CNF(Expr::And(result))

@@ -136,8 +136,8 @@ pub use dnf::DNF;
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub enum Expr {
     /// Conjunction of expressions. Since `AND` is commutative, the expressions are sorted.
-    And(Vec<Expr>),
-    Or(Vec<Expr>),
+    And(BTreeSet<Expr>),
+    Or(BTreeSet<Expr>),
     Not(Box<Expr>),
 
     /// Propositional variable.
@@ -290,19 +290,13 @@ impl BitAnd for Expr {
             (lhs, rhs) if lhs == rhs => lhs,
             (Expr::And(mut lhs), Expr::And(mut rhs)) => {
                 lhs.append(&mut rhs);
-                lhs.sort_unstable();
                 Expr::And(lhs)
             }
             (Expr::And(mut a), b) | (b, Expr::And(mut a)) => {
-                a.push(b);
-                a.sort_unstable();
+                a.insert(b);
                 Expr::And(a)
             }
-            (lhs, rhs) => Expr::And(if lhs < rhs {
-                vec![lhs, rhs]
-            } else {
-                vec![rhs, lhs]
-            }),
+            (lhs, rhs) => Expr::And(btreeset! {lhs, rhs}),
         }
     }
 }
@@ -317,19 +311,13 @@ impl BitOr for Expr {
             (lhs, rhs) if lhs == rhs => lhs,
             (Expr::Or(mut lhs), Expr::Or(mut rhs)) => {
                 lhs.append(&mut rhs);
-                lhs.sort_unstable();
                 Expr::Or(lhs)
             }
             (Expr::Or(mut a), b) | (b, Expr::Or(mut a)) => {
-                a.push(b);
-                a.sort_unstable();
+                a.insert(b);
                 Expr::Or(a)
             }
-            (lhs, rhs) => Expr::Or(if lhs < rhs {
-                vec![lhs, rhs]
-            } else {
-                vec![rhs, lhs]
-            }),
+            (lhs, rhs) => Expr::Or(btreeset! { lhs, rhs }),
         }
     }
 }
@@ -385,5 +373,31 @@ impl fmt::Display for Expr {
             Expr::True => write!(f, "1"),
             Expr::False => write!(f, "0"),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn reductions() {
+        // x0 ∧ x1 ∧ x0 = x0 ∧ x1
+        assert_eq!(
+            Expr::variable(0) & Expr::variable(1) & Expr::variable(0),
+            Expr::variable(0) & Expr::variable(1),
+        );
+
+        // x0 ∧ x1 ∧ ¬x0 = 0
+        assert_eq!(
+            Expr::variable(0) & Expr::variable(1) & !Expr::variable(0),
+            Expr::False
+        );
+
+        // x0 ∨ x1 ∨ ¬x0 = 1
+        assert_eq!(
+            Expr::variable(0) & Expr::variable(1) & !Expr::variable(0),
+            Expr::False
+        );
     }
 }
