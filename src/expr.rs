@@ -1,4 +1,3 @@
-use crate::State;
 use maplit::btreeset;
 use std::{
     collections::BTreeSet,
@@ -191,8 +190,21 @@ impl Expr {
         }
     }
 
-    pub fn partial_eval(&self, state: &State) -> Expr {
-        todo!()
+    pub fn substitute(&self, id: usize, value: bool) -> Expr {
+        match self {
+            Expr::Var { id: var_id } if *var_id == id => value.into(),
+            Expr::Var { .. } => self.clone(),
+            Expr::Not(e) => !e.substitute(id, value),
+            Expr::And(inner) => inner
+                .iter()
+                .map(|e| e.substitute(id, value))
+                .fold(Expr::True, |acc, e| acc & e),
+            Expr::Or(inner) => inner
+                .iter()
+                .map(|e| e.substitute(id, value))
+                .fold(Expr::False, |acc, e| acc | e),
+            _ => self.clone(),
+        }
     }
 
     /// IDs of using variables in the expression.

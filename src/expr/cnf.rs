@@ -32,9 +32,24 @@ use std::{
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct CNF(Expr);
 
+impl std::ops::Deref for CNF {
+    type Target = Expr;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
 impl CNF {
     pub fn variable(id: usize) -> Self {
         CNF(Expr::Var { id })
+    }
+
+    pub fn as_expr(&self) -> &Expr {
+        &self.0
+    }
+
+    pub fn substitute(&self, id: usize, value: bool) -> Self {
+        CNF(self.0.substitute(id, value))
     }
 
     /// Clauses in AND expression
