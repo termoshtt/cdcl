@@ -280,6 +280,23 @@ impl Ord for Expr {
     }
 }
 
+fn has_prop_and_its_neg(exprs: &BTreeSet<Expr>) -> bool {
+    if exprs.len() < 2 {
+        return false;
+    }
+    let mut iter = exprs.iter();
+    // NOT of any expression is next to the expression
+    let mut last = iter.next().unwrap();
+    while let Some(current) = iter.next() {
+        match current {
+            Expr::Not(c) if c.as_ref() == last => return true,
+            _ => {}
+        }
+        last = current;
+    }
+    false
+}
+
 impl BitAnd for Expr {
     type Output = Expr;
     fn bitand(self, rhs: Self) -> Self::Output {
@@ -290,10 +307,16 @@ impl BitAnd for Expr {
             (lhs, rhs) if lhs == rhs => lhs,
             (Expr::And(mut lhs), Expr::And(mut rhs)) => {
                 lhs.append(&mut rhs);
+                if has_prop_and_its_neg(&lhs) {
+                    return Expr::False;
+                }
                 Expr::And(lhs)
             }
             (Expr::And(mut a), b) | (b, Expr::And(mut a)) => {
                 a.insert(b);
+                if has_prop_and_its_neg(&a) {
+                    return Expr::False;
+                }
                 Expr::And(a)
             }
             (lhs, rhs) => Expr::And(btreeset! {lhs, rhs}),
@@ -311,10 +334,16 @@ impl BitOr for Expr {
             (lhs, rhs) if lhs == rhs => lhs,
             (Expr::Or(mut lhs), Expr::Or(mut rhs)) => {
                 lhs.append(&mut rhs);
+                if has_prop_and_its_neg(&lhs) {
+                    return Expr::True;
+                }
                 Expr::Or(lhs)
             }
             (Expr::Or(mut a), b) | (b, Expr::Or(mut a)) => {
                 a.insert(b);
+                if has_prop_and_its_neg(&a) {
+                    return Expr::True;
+                }
                 Expr::Or(a)
             }
             (lhs, rhs) => Expr::Or(btreeset! { lhs, rhs }),
@@ -381,13 +410,22 @@ mod tests {
     use super::*;
 
     #[test]
-    fn reductions() {
+    fn dedup() {
         // x0 ∧ x1 ∧ x0 = x0 ∧ x1
         assert_eq!(
             Expr::variable(0) & Expr::variable(1) & Expr::variable(0),
             Expr::variable(0) & Expr::variable(1),
         );
 
+        // x0 ∨ x1 ∨ x0 = x0 ∨ x1
+        assert_eq!(
+            Expr::variable(0) | Expr::variable(1) | Expr::variable(0),
+            Expr::variable(0) | Expr::variable(1),
+        );
+    }
+
+    #[test]
+    fn contradiction() {
         // x0 ∧ x1 ∧ ¬x0 = 0
         assert_eq!(
             Expr::variable(0) & Expr::variable(1) & !Expr::variable(0),
