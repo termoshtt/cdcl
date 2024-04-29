@@ -87,7 +87,7 @@ impl CNF {
     ///
     pub fn clauses(&self) -> Box<dyn Iterator<Item = &Expr> + '_> {
         match &self.0 {
-            Expr::And(inner) => Box::new(inner.into_iter()),
+            Expr::And(inner) => Box::new(inner.iter()),
             expr => Box::new(Some(expr).into_iter()),
         }
     }

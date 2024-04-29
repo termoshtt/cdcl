@@ -287,7 +287,7 @@ fn has_prop_and_its_neg(exprs: &BTreeSet<Expr>) -> bool {
     let mut iter = exprs.iter();
     // NOT of any expression is next to the expression
     let mut last = iter.next().unwrap();
-    while let Some(current) = iter.next() {
+    for current in iter {
         match current {
             Expr::Not(c) if c.as_ref() == last => return true,
             _ => {}

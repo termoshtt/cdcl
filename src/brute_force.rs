@@ -1,11 +1,11 @@
 use crate::{Expr, State, CNF};
 
 pub fn brute_force(input: CNF) -> Option<State> {
-    match input.as_expr() {
+    match *input.as_expr() {
         // Already solved
-        &Expr::True => return Some(State::default()),
+        Expr::True => return Some(State::default()),
         // Never feasible
-        &Expr::False => return None,
+        Expr::False => return None,
         _ => {}
     }
 
