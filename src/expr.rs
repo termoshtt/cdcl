@@ -1,4 +1,7 @@
+use crate::State;
+use maplit::btreeset;
 use std::{
+    collections::BTreeSet,
     fmt,
     ops::{BitAnd, BitOr, Not},
 };
@@ -134,8 +137,8 @@ pub use dnf::DNF;
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub enum Expr {
     /// Conjunction of expressions. Since `AND` is commutative, the expressions are sorted.
-    And(Vec<Expr>),
-    Or(Vec<Expr>),
+    And(BTreeSet<Expr>),
+    Or(BTreeSet<Expr>),
     Not(Box<Expr>),
 
     /// Propositional variable.
@@ -153,6 +156,21 @@ impl Expr {
     /// Propositional variable.
     pub fn variable(id: usize) -> Expr {
         Expr::Var { id }
+    }
+
+    pub fn as_bool(&self) -> Option<bool> {
+        match self {
+            Expr::True => Some(true),
+            Expr::False => Some(false),
+            _ => None,
+        }
+    }
+
+    pub fn as_var(&self) -> Option<usize> {
+        match self {
+            Expr::Var { id } => Some(*id),
+            _ => None,
+        }
     }
 
     /// Height of the expression.
@@ -185,6 +203,49 @@ impl Expr {
             }
             Expr::Not(e) => e.height() + 1,
             _ => 1,
+        }
+    }
+
+    pub fn substitute(&self, id: usize, value: bool) -> Expr {
+        match self {
+            Expr::Var { id: var_id } if *var_id == id => value.into(),
+            Expr::Var { .. } => self.clone(),
+            Expr::Not(e) => !e.substitute(id, value),
+            Expr::And(inner) => inner
+                .iter()
+                .map(|e| e.substitute(id, value))
+                .fold(Expr::True, |acc, e| acc & e),
+            Expr::Or(inner) => inner
+                .iter()
+                .map(|e| e.substitute(id, value))
+                .fold(Expr::False, |acc, e| acc | e),
+            _ => self.clone(),
+        }
+    }
+
+    pub fn evaluate(&self, state: &State) -> Expr {
+        match self {
+            Expr::Var { id } => state.contains_key(id).into(),
+            Expr::Not(e) => !e.evaluate(state),
+            Expr::And(inner) => inner
+                .iter()
+                .fold(Expr::True, |acc, e| acc & e.evaluate(state)),
+            Expr::Or(inner) => inner
+                .iter()
+                .fold(Expr::False, |acc, e| acc | e.evaluate(state)),
+            _ => self.clone(),
+        }
+    }
+
+    /// IDs of using variables in the expression.
+    pub fn variables(&self) -> BTreeSet<usize> {
+        match self {
+            Expr::Var { id } => btreeset![*id],
+            Expr::Not(e) => e.variables(),
+            Expr::And(inner) | Expr::Or(inner) => {
+                inner.iter().flat_map(|e| e.variables()).collect()
+            }
+            _ => Default::default(),
         }
     }
 
@@ -249,6 +310,23 @@ impl Ord for Expr {
     }
 }
 
+fn has_prop_and_its_neg(exprs: &BTreeSet<Expr>) -> bool {
+    if exprs.len() < 2 {
+        return false;
+    }
+    let mut iter = exprs.iter();
+    // NOT of any expression is next to the expression
+    let mut last = iter.next().unwrap();
+    for current in iter {
+        match current {
+            Expr::Not(c) if c.as_ref() == last => return true,
+            _ => {}
+        }
+        last = current;
+    }
+    false
+}
+
 impl BitAnd for Expr {
     type Output = Expr;
     fn bitand(self, rhs: Self) -> Self::Output {
@@ -259,19 +337,19 @@ impl BitAnd for Expr {
             (lhs, rhs) if lhs == rhs => lhs,
             (Expr::And(mut lhs), Expr::And(mut rhs)) => {
                 lhs.append(&mut rhs);
-                lhs.sort_unstable();
+                if has_prop_and_its_neg(&lhs) {
+                    return Expr::False;
+                }
                 Expr::And(lhs)
             }
             (Expr::And(mut a), b) | (b, Expr::And(mut a)) => {
-                a.push(b);
-                a.sort_unstable();
+                a.insert(b);
+                if has_prop_and_its_neg(&a) {
+                    return Expr::False;
+                }
                 Expr::And(a)
             }
-            (lhs, rhs) => Expr::And(if lhs < rhs {
-                vec![lhs, rhs]
-            } else {
-                vec![rhs, lhs]
-            }),
+            (lhs, rhs) => Expr::And(btreeset! {lhs, rhs}),
         }
     }
 }
@@ -286,19 +364,19 @@ impl BitOr for Expr {
             (lhs, rhs) if lhs == rhs => lhs,
             (Expr::Or(mut lhs), Expr::Or(mut rhs)) => {
                 lhs.append(&mut rhs);
-                lhs.sort_unstable();
+                if has_prop_and_its_neg(&lhs) {
+                    return Expr::True;
+                }
                 Expr::Or(lhs)
             }
             (Expr::Or(mut a), b) | (b, Expr::Or(mut a)) => {
-                a.push(b);
-                a.sort_unstable();
+                a.insert(b);
+                if has_prop_and_its_neg(&a) {
+                    return Expr::True;
+                }
                 Expr::Or(a)
             }
-            (lhs, rhs) => Expr::Or(if lhs < rhs {
-                vec![lhs, rhs]
-            } else {
-                vec![rhs, lhs]
-            }),
+            (lhs, rhs) => Expr::Or(btreeset! { lhs, rhs }),
         }
     }
 }
@@ -354,5 +432,40 @@ impl fmt::Display for Expr {
             Expr::True => write!(f, "1"),
             Expr::False => write!(f, "0"),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn dedup() {
+        // x0 ∧ x1 ∧ x0 = x0 ∧ x1
+        assert_eq!(
+            Expr::variable(0) & Expr::variable(1) & Expr::variable(0),
+            Expr::variable(0) & Expr::variable(1),
+        );
+
+        // x0 ∨ x1 ∨ x0 = x0 ∨ x1
+        assert_eq!(
+            Expr::variable(0) | Expr::variable(1) | Expr::variable(0),
+            Expr::variable(0) | Expr::variable(1),
+        );
+    }
+
+    #[test]
+    fn contradiction() {
+        // x0 ∧ x1 ∧ ¬x0 = 0
+        assert_eq!(
+            Expr::variable(0) & Expr::variable(1) & !Expr::variable(0),
+            Expr::False
+        );
+
+        // x0 ∨ x1 ∨ ¬x0 = 1
+        assert_eq!(
+            Expr::variable(0) & Expr::variable(1) & !Expr::variable(0),
+            Expr::False
+        );
     }
 }

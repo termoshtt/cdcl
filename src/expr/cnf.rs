@@ -1,5 +1,6 @@
 use super::Expr;
 use std::{
+    collections::BTreeSet,
     fmt,
     ops::{BitAnd, BitOr, Not},
 };
@@ -32,9 +33,63 @@ use std::{
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct CNF(Expr);
 
+impl std::ops::Deref for CNF {
+    type Target = Expr;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl From<bool> for CNF {
+    fn from(value: bool) -> Self {
+        CNF(Expr::from(value))
+    }
+}
+
 impl CNF {
     pub fn variable(id: usize) -> Self {
         CNF(Expr::Var { id })
+    }
+
+    pub fn as_expr(&self) -> &Expr {
+        &self.0
+    }
+
+    pub fn substitute(&self, id: usize, value: bool) -> Self {
+        CNF(self.0.substitute(id, value))
+    }
+
+    /// Clauses in AND expression
+    ///
+    /// ```rust
+    /// use cdcl::{CNF, Expr};
+    ///
+    /// // (x0 ∧ x1) ∨ x2 = (x0 ∨ x2) ∧ (x1 ∨ x2)
+    /// let expr = (CNF::variable(0) & CNF::variable(1)) | CNF::variable(2);
+    /// let clauses = expr.clauses().cloned().collect::<Vec<Expr>>();
+    /// assert_eq!(
+    ///     clauses,
+    ///     vec![
+    ///         Expr::variable(0) | Expr::variable(2), // x0 ∨ x2
+    ///         Expr::variable(1) | Expr::variable(2)  // x1 ∨ x2
+    ///     ]
+    /// );
+    ///
+    /// // Non-AND expression is a single clause
+    /// let expr = CNF::variable(0);
+    /// let clauses = expr.clauses().cloned().collect::<Vec<Expr>>();
+    /// assert_eq!(clauses, vec![Expr::variable(0)]);
+    ///
+    /// let expr = CNF::variable(0) | CNF::variable(1);
+    /// let clauses = expr.clauses().cloned().collect::<Vec<Expr>>();
+    /// assert_eq!(clauses, vec![Expr::variable(0) | Expr::variable(1)]);
+    /// ```
+    ///
+    pub fn clauses(&self) -> Box<dyn Iterator<Item = &Expr> + '_> {
+        match &self.0 {
+            Expr::And(inner) => Box::new(inner.iter()),
+            expr => Box::new(Some(expr).into_iter()),
+        }
     }
 }
 
@@ -66,10 +121,10 @@ impl BitOr for CNF {
         match (self.0, rhs.0) {
             (Expr::And(lhs), Expr::And(rhs)) => {
                 // (a ∧ b) ∨ (c ∧ d) = (a ∨ c) ∧ (a ∨ d) ∧ (b ∨ c) ∧ (b ∨ d)
-                let mut result = Vec::new();
+                let mut result = BTreeSet::new();
                 for a in &lhs {
                     for b in &rhs {
-                        result.push(a.clone() | b.clone());
+                        result.insert(a.clone() | b.clone());
                     }
                 }
                 CNF(Expr::And(result))
