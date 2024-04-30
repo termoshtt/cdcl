@@ -1,3 +1,4 @@
+use crate::State;
 use maplit::btreeset;
 use std::{
     collections::BTreeSet,
@@ -157,6 +158,21 @@ impl Expr {
         Expr::Var { id }
     }
 
+    pub fn as_bool(&self) -> Option<bool> {
+        match self {
+            Expr::True => Some(true),
+            Expr::False => Some(false),
+            _ => None,
+        }
+    }
+
+    pub fn as_var(&self) -> Option<usize> {
+        match self {
+            Expr::Var { id } => Some(*id),
+            _ => None,
+        }
+    }
+
     /// Height of the expression.
     ///
     /// ```rust
@@ -203,6 +219,20 @@ impl Expr {
                 .iter()
                 .map(|e| e.substitute(id, value))
                 .fold(Expr::False, |acc, e| acc | e),
+            _ => self.clone(),
+        }
+    }
+
+    pub fn evaluate(&self, state: &State) -> Expr {
+        match self {
+            Expr::Var { id } => state.contains_key(id).into(),
+            Expr::Not(e) => !e.evaluate(state),
+            Expr::And(inner) => inner
+                .iter()
+                .fold(Expr::True, |acc, e| acc & e.evaluate(state)),
+            Expr::Or(inner) => inner
+                .iter()
+                .fold(Expr::False, |acc, e| acc | e.evaluate(state)),
             _ => self.clone(),
         }
     }
