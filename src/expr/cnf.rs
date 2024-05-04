@@ -70,18 +70,20 @@ impl CNF {
     /// ```
     pub fn from_dimacs_format(input: &str) -> Result<(Self, usize, usize)> {
         let mut lines = input.lines().filter_map(|line| {
+            let line = line.trim();
             if line.is_empty() {
                 // Emtpy line is ignored
                 return None;
             }
-            if line.starts_with("c") {
+            if line.starts_with(['c', 'C']) {
                 // Comment
                 return None;
             }
-            Some(line.trim().split(" ").collect::<Vec<&str>>())
+            Some(line.split(' ').collect::<Vec<&str>>())
         });
         let header = lines.next().context("Missing header")?;
-        if header.len() != 4 || header[0] != "p" || header[1] != "cnf" {
+        if header.len() != 4 || header[0].to_lowercase() != "p" || header[1].to_lowercase() != "cnf"
+        {
             bail!("Invalid header: {}", header.join(" "));
         }
         let num_variables = header[2].parse::<usize>()?;
@@ -214,5 +216,24 @@ impl Not for CNF {
             Expr::Or(inner) => CNF(Expr::And(inner.into_iter().map(Not::not).collect())),
             a => CNF(!a),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::CNF;
+
+    #[test]
+    fn dimacs_comment() {
+        CNF::from_dimacs_format(
+            r#"
+            c This is a comment
+            p cnf 5 3
+            1 -5 4 0
+            -1 5 3 4 0
+            -3 -4 0
+            "#,
+        )
+        .unwrap();
     }
 }
