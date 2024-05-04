@@ -1,4 +1,5 @@
 use super::Expr;
+use anyhow::{bail, Context, Result};
 use std::{
     collections::BTreeSet,
     fmt,
@@ -47,6 +48,18 @@ impl From<bool> for CNF {
 }
 
 impl CNF {
+    pub fn from_dimacs_format(input: &str) -> Result<Self> {
+        let mut lines = input
+            .lines()
+            .map(|line| line.trim().split(" ").collect::<Vec<&str>>());
+        let header = lines.next().context("Missing header")?;
+        if header.len() != 4 || header[0] != "p" || header[1] != "cnf" {
+            bail!("Invalid header: {}", header.join(" "));
+        }
+
+        todo!()
+    }
+
     pub fn variable(id: usize) -> Self {
         CNF(Expr::Var { id })
     }
