@@ -17,6 +17,7 @@ pub fn brute_force(input: CNF, selector: fn(&CNF) -> usize) -> Option<State> {
     }
     let fix = selector(&input);
     for value in [true, false] {
+        log::trace!("Set x{} = {}", fix, value);
         if let Some(mut state) = brute_force(input.substitute(fix, value), selector) {
             state.insert(fix, value);
             return Some(state);

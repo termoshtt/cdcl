@@ -1,4 +1,5 @@
 use super::{Expr, State};
+use anyhow::Result;
 use std::{
     collections::BTreeSet,
     fmt,
@@ -47,6 +48,50 @@ impl From<bool> for CNF {
 }
 
 impl CNF {
+    pub fn from_rgbd(cnf: rgbd::CNF) -> Self {
+        let inner = cnf
+            .clauses
+            .into_iter()
+            .map(|clause| {
+                let inner = clause
+                    .into_iter()
+                    .map(|var| {
+                        if var >= 0 {
+                            Expr::variable(var as usize)
+                        } else {
+                            !Expr::variable((-var) as usize)
+                        }
+                    })
+                    .collect::<BTreeSet<Expr>>();
+                Expr::Or(inner)
+            })
+            .collect();
+        Self(Expr::And(inner))
+    }
+
+    /// Parse CNF from DIMACS format
+    ///
+    /// ```rust
+    /// use cdcl::CNF;
+    ///
+    /// let expr = CNF::from_dimacs_format(r#"
+    /// p cnf 5 3
+    /// 1 -5 4 0
+    /// -1 5 3 4 0
+    /// -3 -4 0
+    /// "#).unwrap();
+    ///
+    /// // Note the expression are sorted automatically
+    /// assert_eq!(
+    ///     expr.to_string(),
+    ///     "(¬x3 ∨ ¬x4) ∧ (x1 ∨ x4 ∨ ¬x5) ∧ (¬x1 ∨ x3 ∨ x4 ∨ x5)"
+    /// );
+    /// ```
+    pub fn from_dimacs_format(input: &str) -> Result<Self> {
+        let cnf = rgbd::CNF::from_dimacs_format_str(input)?;
+        Ok(Self::from_rgbd(cnf))
+    }
+
     pub fn variable(id: usize) -> Self {
         CNF(Expr::Var { id })
     }
@@ -198,5 +243,24 @@ impl Not for CNF {
             Expr::Or(inner) => CNF(Expr::And(inner.into_iter().map(Not::not).collect())),
             a => CNF(!a),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::CNF;
+
+    #[test]
+    fn dimacs_comment() {
+        CNF::from_dimacs_format(
+            r#"
+            c This is a comment
+            p cnf 5 3
+            1 -5 4 0
+            -1 5 3 4 0
+            -3 -4 0
+            "#,
+        )
+        .unwrap();
     }
 }
