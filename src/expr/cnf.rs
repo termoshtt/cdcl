@@ -1,5 +1,5 @@
 use super::Expr;
-use anyhow::{bail, Context, Result};
+use anyhow::Result;
 use std::{
     collections::BTreeSet,
     fmt,
@@ -48,12 +48,33 @@ impl From<bool> for CNF {
 }
 
 impl CNF {
+    pub fn from_rgbd(cnf: rgbd::CNF) -> Self {
+        let inner = cnf
+            .clauses
+            .into_iter()
+            .map(|clause| {
+                let inner = clause
+                    .into_iter()
+                    .map(|var| {
+                        if var >= 0 {
+                            Expr::variable(var as usize)
+                        } else {
+                            !Expr::variable((-var) as usize)
+                        }
+                    })
+                    .collect::<BTreeSet<Expr>>();
+                Expr::Or(inner)
+            })
+            .collect();
+        Self(Expr::And(inner))
+    }
+
     /// Parse CNF from DIMACS format
     ///
     /// ```rust
     /// use cdcl::CNF;
     ///
-    /// let (expr, num_variables, num_clauses) = CNF::from_dimacs_format(r#"
+    /// let expr = CNF::from_dimacs_format(r#"
     /// p cnf 5 3
     /// 1 -5 4 0
     /// -1 5 3 4 0
@@ -63,54 +84,12 @@ impl CNF {
     /// // Note the expression are sorted automatically
     /// assert_eq!(
     ///     expr.to_string(),
-    ///     "(x0 ∨ ¬x3 ∨ ¬x4) ∧ (x0 ∨ x1 ∨ x4 ∨ ¬x5) ∧ (x0 ∨ ¬x1 ∨ x3 ∨ x4 ∨ x5)"
+    ///     "(¬x3 ∨ ¬x4) ∧ (x1 ∨ x4 ∨ ¬x5) ∧ (¬x1 ∨ x3 ∨ x4 ∨ x5)"
     /// );
-    /// assert_eq!(num_variables, 5);
-    /// assert_eq!(num_clauses, 3);
     /// ```
-    pub fn from_dimacs_format(input: &str) -> Result<(Self, usize, usize)> {
-        let mut lines = input.lines().filter_map(|line| {
-            let line = line.trim();
-            if line.is_empty() {
-                // Emtpy line is ignored
-                return None;
-            }
-            if line.starts_with(['c', 'C']) {
-                // Comment
-                return None;
-            }
-            Some(line.split(' ').collect::<Vec<&str>>())
-        });
-        let header = lines.next().context("Missing header")?;
-        if header.len() != 4 || header[0].to_lowercase() != "p" || header[1].to_lowercase() != "cnf"
-        {
-            bail!("Invalid header: {}", header.join(" "));
-        }
-        let num_variables = header[2].parse::<usize>()?;
-        let num_clauses = header[3].parse::<usize>()?;
-
-        let clauses = lines
-            .map(|line| -> Result<Expr> {
-                let clause = line
-                    .iter()
-                    .map(|&s| -> Result<Expr> {
-                        let id = s.parse::<i32>()?;
-                        Ok(if id >= 0 {
-                            Expr::variable(id as usize)
-                        } else {
-                            !Expr::variable((-id) as usize)
-                        })
-                    })
-                    .collect::<Result<BTreeSet<Expr>>>()?;
-                Ok(if clause.len() == 1 {
-                    clause.last().unwrap().clone()
-                } else {
-                    Expr::Or(clause)
-                })
-            })
-            .collect::<Result<BTreeSet<Expr>>>()?;
-
-        Ok((CNF(Expr::And(clauses)), num_variables, num_clauses))
+    pub fn from_dimacs_format(input: &str) -> Result<Self> {
+        let cnf = rgbd::CNF::from_dimacs_format_str(input)?;
+        Ok(Self::from_rgbd(cnf))
     }
 
     pub fn variable(id: usize) -> Self {
