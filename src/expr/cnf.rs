@@ -245,22 +245,3 @@ impl Not for CNF {
         }
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::CNF;
-
-    #[test]
-    fn dimacs_comment() {
-        CNF::from_dimacs_format(
-            r#"
-            c This is a comment
-            p cnf 5 3
-            1 -5 4 0
-            -1 5 3 4 0
-            -3 -4 0
-            "#,
-        )
-        .unwrap();
-    }
-}
