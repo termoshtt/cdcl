@@ -1,5 +1,8 @@
 use crate::{Expr, Solution, State, CNF};
-use std::sync::{atomic::AtomicBool, Arc};
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+};
 
 pub fn take_minimal_id(cnf: &CNF) -> usize {
     assert!(cnf.as_bool().is_none());
@@ -20,14 +23,22 @@ pub fn brute_force(
         Expr::False => return Solution::UnSat,
         _ => {}
     }
+
+    if cancel_token.load(Ordering::Relaxed) {
+        log::info!("Canceled");
+        return Solution::Canceled;
+    }
+
     let fix = selector(&input);
     for value in [true, false] {
         log::trace!("Set x{} = {}", fix, value);
-        if let Solution::Sat(mut state) =
-            brute_force(input.substitute(fix, value), selector, cancel_token.clone())
-        {
-            state.insert(fix, value);
-            return Solution::Sat(state);
+        match brute_force(input.substitute(fix, value), selector, cancel_token.clone()) {
+            Solution::Sat(mut state) => {
+                state.insert(fix, value);
+                return Solution::Sat(state);
+            }
+            Solution::UnSat => continue,
+            Solution::Canceled => return Solution::Canceled,
         }
     }
     Solution::UnSat
