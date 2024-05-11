@@ -6,7 +6,13 @@ mod expr;
 pub use brute_force::*;
 pub use expr::*;
 
-use std::collections::BTreeMap;
+use std::{
+    collections::BTreeMap,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
+};
 
 pub type State = BTreeMap<usize, bool>;
 
@@ -26,5 +32,19 @@ impl Solution {
             Solution::Sat(state) => Some(state),
             _ => None,
         }
+    }
+}
+
+pub trait Solver {
+    fn solve_cancelable(&mut self, expr: CNF, cancel_token: Arc<AtomicBool>) -> Solution;
+
+    fn solve(&mut self, expr: CNF, timeout: std::time::Duration) -> Solution {
+        let cancel_token = Arc::new(AtomicBool::new(false));
+        let t = cancel_token.clone();
+        std::thread::spawn(move || {
+            std::thread::sleep(timeout);
+            t.store(true, Ordering::Relaxed);
+        });
+        self.solve_cancelable(expr, cancel_token)
     }
 }

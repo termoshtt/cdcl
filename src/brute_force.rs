@@ -1,8 +1,16 @@
-use crate::{Expr, Solution, State, CNF};
+use crate::{Expr, Solution, Solver, State, CNF};
 use std::sync::{
     atomic::{AtomicBool, Ordering},
     Arc,
 };
+
+pub struct BruteForce {}
+
+impl Solver for BruteForce {
+    fn solve_cancelable(&mut self, expr: CNF, cancel_token: Arc<AtomicBool>) -> Solution {
+        brute_force(expr, take_minimal_id, cancel_token)
+    }
+}
 
 pub fn take_minimal_id(cnf: &CNF) -> usize {
     assert!(cnf.as_bool().is_none());
