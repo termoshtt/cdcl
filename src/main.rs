@@ -1,8 +1,12 @@
 use anyhow::{bail, Result};
 use cdcl::*;
 use clap::Parser;
+use colored::Colorize;
 use rgbd::Digest;
-use std::{ops::Deref, time::Duration};
+use std::{
+    ops::Deref,
+    time::{Duration, Instant},
+};
 
 #[derive(Debug, Parser)]
 struct Args {
@@ -11,8 +15,8 @@ struct Args {
     digest: Option<String>,
     #[arg(short = 'n', long)]
     max_num_variables: Option<usize>,
-    #[arg(short = 't', long)]
-    timeout_secs: Option<u64>,
+    #[arg(short = 't', long, default_value = "10")]
+    timeout_secs: u64,
 }
 
 impl Args {
@@ -50,13 +54,61 @@ fn main() -> Result<()> {
     };
     let digests = args.digests()?;
 
-    eprintln!("Found {} instances", digests.len());
-    for digest in digests {
-        println!("Reading {}", digest.deref());
+    let n = digests.len();
+    let mut sat = 0;
+    let mut unsat = 0;
+    let mut timeout = 0;
+
+    eprintln!(
+        "{:>12} {} instances",
+        "Found".bold().magenta(),
+        digests.len()
+    );
+    for (i, digest) in digests.iter().enumerate() {
         let expr = CNF::from_rgbd(digest.read()?);
-        println!("Solving {}", digest.deref());
-        let _solution = solver.solve(expr, args.timeout_secs.map(Duration::from_secs));
+        eprintln!(
+            "{:>12} ({i}/{n}) {} [timeout = {}s]",
+            "Solving".bold().blue(),
+            digest.deref(),
+            args.timeout_secs
+        );
+        let start = Instant::now();
+        let solution = solver.solve(expr, Duration::from_secs(args.timeout_secs));
+        let elapsed = start.elapsed();
+        match solution {
+            Solution::Sat(_) => {
+                eprintln!(
+                    "{:>12} {} (in {:?})",
+                    "SAT".bold().green(),
+                    digest.deref(),
+                    elapsed
+                );
+                sat += 1;
+            }
+            Solution::UnSat => {
+                eprintln!(
+                    "{:>12} {} (in {:?})",
+                    "UNSAT".bold().green(),
+                    digest.deref(),
+                    elapsed
+                );
+                unsat += 1;
+            }
+            Solution::Canceled => {
+                eprintln!(
+                    "{:>12} {} (in {:?})",
+                    "Timeout".bold().yellow(),
+                    digest.deref(),
+                    elapsed
+                );
+                timeout += 1;
+            }
+        }
     }
+    eprintln!(
+        "{:>12} {sat}/{n} SAT, {unsat}/{n} UNSAT, {timeout}/{n} Timeout",
+        "Summary".bold().magenta(),
+    );
 
     Ok(())
 }

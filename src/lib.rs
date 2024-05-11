@@ -38,15 +38,13 @@ impl Solution {
 pub trait Solver {
     fn solve_cancelable(&mut self, expr: CNF, cancel_token: Arc<AtomicBool>) -> Solution;
 
-    fn solve(&mut self, expr: CNF, timeout: Option<std::time::Duration>) -> Solution {
+    fn solve(&mut self, expr: CNF, timeout: std::time::Duration) -> Solution {
         let cancel_token = Arc::new(AtomicBool::new(false));
-        if let Some(timeout) = timeout {
-            let cancel_token = cancel_token.clone();
-            std::thread::spawn(move || {
-                std::thread::sleep(timeout);
-                cancel_token.store(true, Ordering::Relaxed);
-            });
-        }
+        let t = cancel_token.clone();
+        std::thread::spawn(move || {
+            std::thread::sleep(timeout);
+            t.store(true, Ordering::Relaxed);
+        });
         self.solve_cancelable(expr, cancel_token)
     }
 }
