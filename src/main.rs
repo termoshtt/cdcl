@@ -1,13 +1,7 @@
 use anyhow::{bail, Result};
 use cdcl::*;
 use clap::Parser;
-use std::{
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc,
-    },
-    time::Duration,
-};
+use std::time::Duration;
 
 #[derive(Debug, Parser)]
 struct Args {
@@ -17,33 +11,18 @@ struct Args {
     timeout_secs: Option<u64>,
 }
 
-fn solve(digest: rgbd::Digest, timeout_secs: Option<u64>, algorithm: &str) -> Result<()> {
-    let expr = CNF::from_rgbd(digest.read()?);
-
-    let cancel_token = Arc::new(AtomicBool::new(false));
-    let _timer = std::thread::spawn({
-        let cancel_token = cancel_token.clone();
-        move || {
-            if let Some(timeout) = timeout_secs {
-                std::thread::sleep(Duration::from_secs(timeout));
-                cancel_token.store(true, Ordering::Relaxed);
-            }
-        }
-    });
-
-    let solution = match algorithm {
-        "brute_force" => brute_force(expr, take_minimal_id, cancel_token),
-        _ => bail!("Unknown algorithm: {}", algorithm),
-    };
-    dbg!(solution);
-
-    Ok(())
-}
-
 fn main() -> Result<()> {
     env_logger::init();
     let args = Args::parse();
+
+    let mut solver: Box<dyn Solver> = match args.algorithm.as_str() {
+        "brute_force" => Box::new(BruteForce {}),
+        _ => bail!("Unknown algorithm: {}", args.algorithm),
+    };
+
     let digest = rgbd::Digest::new(args.digest);
-    solve(digest, args.timeout_secs, &args.algorithm)?;
+    let expr = CNF::from_rgbd(digest.read()?);
+
+    let _solution = solver.solve(expr, args.timeout_secs.map(Duration::from_secs));
     Ok(())
 }
