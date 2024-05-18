@@ -13,7 +13,7 @@ struct Args {
     max_num_variables: Option<usize>,
     #[arg(short = 'c', long)]
     max_num_clauses: Option<usize>,
-    #[arg(short = 't', long, default_value = "10")]
+    #[arg(short = 't', long, default_value = "1")]
     timeout_secs: u64,
 }
 
