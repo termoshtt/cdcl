@@ -1,6 +1,5 @@
 use crate::{Solution, Solver, CNF};
 use anyhow::Result;
-use colored::Colorize;
 use rgbd::Digest;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -17,8 +16,14 @@ pub struct Report {
     timed_out: Vec<String>,
 }
 
+impl Report {
+    pub fn name(&self) -> String {
+        format!("report_{}", self.solver)
+    }
+}
+
 pub fn benchmark(
-    mut solver: impl Solver,
+    solver: &mut dyn Solver,
     digests: Vec<Digest>,
     timeout: Duration,
 ) -> Result<Report> {
@@ -27,48 +32,30 @@ pub fn benchmark(
     let mut unsat = Vec::new();
     let mut timed_out = Vec::new();
 
-    eprintln!(
-        "{:>12} {} instances",
-        "Found".bold().magenta(),
-        digests.len()
-    );
     for (i, digest) in digests.iter().enumerate() {
         let expr = CNF::from_rgbd(digest.read()?);
-        eprintln!(
-            "{:>12} ({i}/{n}) {} [timeout = {:?}]",
-            "Solving".bold().blue(),
-            digest.deref(),
-            timeout
-        );
         let start = Instant::now();
         let solution = solver.solve(expr, timeout);
         let elapsed = start.elapsed();
         match solution {
             Solution::Sat(_) => {
-                eprintln!(
-                    "{:>12} {} (in {:?})",
-                    "SAT".bold().green(),
+                log::info!(
+                    "Solved ({i}/{n}): {} is SAT (in {:?})",
                     digest.deref(),
                     elapsed
                 );
                 sat.push((digest.to_string(), elapsed));
             }
             Solution::UnSat => {
-                eprintln!(
-                    "{:>12} {} (in {:?})",
-                    "UNSAT".bold().green(),
+                log::info!(
+                    "Solved ({i}/{n}): {} is UNSAT (in {:?})",
                     digest.deref(),
                     elapsed
                 );
                 unsat.push((digest.to_string(), elapsed));
             }
             Solution::Canceled => {
-                eprintln!(
-                    "{:>12} {} (in {:?})",
-                    "Timeout".bold().yellow(),
-                    digest.deref(),
-                    elapsed
-                );
+                log::info!("Timeout ({i}/{n}): {} (in {:?})", digest.deref(), elapsed);
                 timed_out.push(digest.to_string());
             }
         }

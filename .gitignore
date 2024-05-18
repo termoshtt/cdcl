@@ -1,1 +1,4 @@
 target/
+
+# Benchmark results
+*.json
