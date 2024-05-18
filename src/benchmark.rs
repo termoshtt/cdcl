@@ -19,6 +19,7 @@ pub struct Report {
     solver: &'static str,
     timeout_msecs: u128,
     entries: Vec<Entry>,
+    sorted_elapsed_times: Vec<u128>,
 }
 
 impl Report {
@@ -76,9 +77,23 @@ pub fn benchmark(
         }
     }
 
+    let timeout_msecs = timeout.as_millis();
+    let mut sorted_elapsed_times: Vec<u128> = entries
+        .iter()
+        .filter_map(|e| {
+            if e.elapsed_msecs <= timeout_msecs {
+                Some(e.elapsed_msecs)
+            } else {
+                None
+            }
+        })
+        .collect();
+    sorted_elapsed_times.sort_unstable();
+
     Ok(Report {
         solver: solver.name(),
-        timeout_msecs: timeout.as_millis(),
+        timeout_msecs,
         entries,
+        sorted_elapsed_times,
     })
 }
