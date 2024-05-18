@@ -8,17 +8,22 @@ use std::{
 };
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Entry {
+    pub digest: String,
+    pub elapsed_msecs: u128,
+    pub result: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Report {
     solver: &'static str,
-    timeout: Duration,
-    sat: Vec<(String, Duration)>,
-    unsat: Vec<(String, Duration)>,
-    timed_out: Vec<String>,
+    timeout_msecs: u128,
+    entries: Vec<Entry>,
 }
 
 impl Report {
     pub fn name(&self) -> String {
-        format!("report_{}", self.solver)
+        format!("report_{}_{}", self.solver, std::process::id())
     }
 }
 
@@ -28,9 +33,7 @@ pub fn benchmark(
     timeout: Duration,
 ) -> Result<Report> {
     let n = digests.len();
-    let mut sat = Vec::new();
-    let mut unsat = Vec::new();
-    let mut timed_out = Vec::new();
+    let mut entries = Vec::new();
 
     for (i, digest) in digests.iter().enumerate() {
         let expr = CNF::from_rgbd(digest.read()?);
@@ -44,7 +47,11 @@ pub fn benchmark(
                     digest.deref(),
                     elapsed
                 );
-                sat.push((digest.to_string(), elapsed));
+                entries.push(Entry {
+                    digest: digest.to_string(),
+                    elapsed_msecs: elapsed.as_millis(),
+                    result: "SAT".to_string(),
+                });
             }
             Solution::UnSat => {
                 log::info!(
@@ -52,20 +59,26 @@ pub fn benchmark(
                     digest.deref(),
                     elapsed
                 );
-                unsat.push((digest.to_string(), elapsed));
+                entries.push(Entry {
+                    digest: digest.to_string(),
+                    elapsed_msecs: elapsed.as_millis(),
+                    result: "UNSAT".to_string(),
+                });
             }
             Solution::Canceled => {
                 log::info!("Timeout ({i}/{n}): {} (in {:?})", digest.deref(), elapsed);
-                timed_out.push(digest.to_string());
+                entries.push(Entry {
+                    digest: digest.to_string(),
+                    elapsed_msecs: elapsed.as_millis(),
+                    result: "TIMEOUT".to_string(),
+                });
             }
         }
     }
 
     Ok(Report {
         solver: solver.name(),
-        timeout,
-        sat,
-        unsat,
-        timed_out,
+        timeout_msecs: timeout.as_millis(),
+        entries,
     })
 }

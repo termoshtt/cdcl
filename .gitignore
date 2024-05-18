@@ -2,3 +2,6 @@ target/
 
 # Benchmark results
 *.json
+
+# Jupyter
+Untitled*.ipynb
