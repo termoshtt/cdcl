@@ -1,5 +1,6 @@
 //! Toy Conflict-Driven Clause-Learning (CDCL) SAT solver for learning
 
+pub mod benchmark;
 mod brute_force;
 mod expr;
 
@@ -12,6 +13,7 @@ use std::{
         atomic::{AtomicBool, Ordering},
         Arc,
     },
+    time::Duration,
 };
 
 pub type State = BTreeMap<usize, bool>;
@@ -36,9 +38,11 @@ impl Solution {
 }
 
 pub trait Solver {
+    fn name(&self) -> &'static str;
+
     fn solve_cancelable(&mut self, expr: CNF, cancel_token: Arc<AtomicBool>) -> Solution;
 
-    fn solve(&mut self, expr: CNF, timeout: std::time::Duration) -> Solution {
+    fn solve(&mut self, expr: CNF, timeout: Duration) -> Solution {
         let cancel_token = Arc::new(AtomicBool::new(false));
         let t = cancel_token.clone();
         std::thread::spawn(move || {
