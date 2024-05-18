@@ -5,3 +5,5 @@ target/
 
 # Jupyter
 Untitled*.ipynb
+*-checkpoint.ipynb
+.ipynb_checkpoints/
