@@ -1,0 +1,418 @@
+{
+  "solver": "brute_force",
+  "timeout_msecs": 1000,
+  "entries": [
+    {
+      "digest": "00f969737ba4338bd233cd3ed249bd55",
+      "elapsed_msecs": 1000,
+      "result": "TIMEOUT"
+    },
+    {
+      "digest": "02b69d0e5c2b68d5c3d650164b6c277d",
+      "elapsed_msecs": 79,
+      "result": "SAT"
+    },
+    {
+      "digest": "04071576275e4113b60c21601b364345",
+      "elapsed_msecs": 1000,
+      "result": "TIMEOUT"
+    },
+    {
+      "digest": "04327b18171b43ff06586707499b97fc",
+      "elapsed_msecs": 1000,
+      "result": "TIMEOUT"
+    },
+    {
+      "digest": "04e47e6635908600ef3938b32644825a",
+      "elapsed_msecs": 208,
+      "result": "UNSAT"
+    },
+    {
+      "digest": "04fef94bab64c9e3cc8b2b696f38f7be",
+      "elapsed_msecs": 1007,
+      "result": "TIMEOUT"
+    },
+    {
+      "digest": "0662df257be6c6d0691729cb23a17386",
+      "elapsed_msecs": 1008,
+      "result": "TIMEOUT"
+    },
+    {
+      "digest": "067dc6945c4aec1c2bc1fdc2e5819124",
+      "elapsed_msecs": 581,
+      "result": "UNSAT"
+    },
+    {
+      "digest": "079b877e6d9da81bd36fc7bf8a812aa2",
+      "elapsed_msecs": 654,
+      "result": "SAT"
+    },
+    {
+      "digest": "11c893b7c37aeb53cdaf5f677dda0b7d",
+      "elapsed_msecs": 1001,
+      "result": "TIMEOUT"
+    },
+    {
+      "digest": "1cf67760092ebabc1bb42706fb8d43dc",
+      "elapsed_msecs": 0,
+      "result": "SAT"
+    },
+    {
+      "digest": "21ca756baf6af7f15098455977b88d6d",
+      "elapsed_msecs": 1000,
+      "result": "TIMEOUT"
+    },
+    {
+      "digest": "2367a7e13ff5d039978a26c3081a4342",
+      "elapsed_msecs": 642,
+      "result": "SAT"
+    },
+    {
+      "digest": "23a92c04ee9248308a18d6a44e5d15f0",
+      "elapsed_msecs": 0,
+      "result": "SAT"
+    },
+    {
+      "digest": "2b738a1991a7318cad993a809b10cc2c",
+      "elapsed_msecs": 1,
+      "result": "UNSAT"
+    },
+    {
+      "digest": "2d1d8789282286c8b905cc1b032e70b1",
+      "elapsed_msecs": 665,
+      "result": "SAT"
+    },
+    {
+      "digest": "2f89954fdd88bea47db9a68279c1cec2",
+      "elapsed_msecs": 1007,
+      "result": "TIMEOUT"
+    },
+    {
+      "digest": "38de0de52a209b6d0beb50986fd8b506",
+      "elapsed_msecs": 537,
+      "result": "UNSAT"
+    },
+    {
+      "digest": "3df4057f6ca11c57e2d3e8f24234cd5b",
+      "elapsed_msecs": 1001,
+      "result": "TIMEOUT"
+    },
+    {
+      "digest": "3eaa112593cb66052d579c16f3d5a37e",
+      "elapsed_msecs": 1002,
+      "result": "TIMEOUT"
+    },
+    {
+      "digest": "405ac3c537e97b70364438d64c69e8bf",
+      "elapsed_msecs": 1003,
+      "result": "TIMEOUT"
+    },
+    {
+      "digest": "43e1cc469be3087b024dc0b5f4b01d5c",
+      "elapsed_msecs": 1001,
+      "result": "TIMEOUT"
+    },
+    {
+      "digest": "47e3b78c2157b685e23b53915a1b33b5",
+      "elapsed_msecs": 16,
+      "result": "UNSAT"
+    },
+    {
+      "digest": "4b7ca3eb0be96a25f119e8238d5da1f6",
+      "elapsed_msecs": 544,
+      "result": "SAT"
+    },
+    {
+      "digest": "4df590f124b66f482b7fea490be31ef5",
+      "elapsed_msecs": 1001,
+      "result": "TIMEOUT"
+    },
+    {
+      "digest": "4ee84e1c09d0b8434879475eccc9dc29",
+      "elapsed_msecs": 297,
+      "result": "SAT"
+    },
+    {
+      "digest": "4efecd99c585a00761bc52113f4ac456",
+      "elapsed_msecs": 1002,
+      "result": "TIMEOUT"
+    },
+    {
+      "digest": "4f968e0bb4a9609933e006ebc53a27ef",
+      "elapsed_msecs": 1000,
+      "result": "TIMEOUT"
+    },
+    {
+      "digest": "5147f6d99a48a5a8b7b8fb044dc97e2a",
+      "elapsed_msecs": 17,
+      "result": "UNSAT"
+    },
+    {
+      "digest": "5e7c7f5b8ff247cb8b8de0645e327b4d",
+      "elapsed_msecs": 814,
+      "result": "UNSAT"
+    },
+    {
+      "digest": "5f05cfd0e76583aad3a73d26670e8387",
+      "elapsed_msecs": 1003,
+      "result": "TIMEOUT"
+    },
+    {
+      "digest": "6176faf90d04b943e72346f634a1577e",
+      "elapsed_msecs": 1001,
+      "result": "TIMEOUT"
+    },
+    {
+      "digest": "6478d3d66cf12fe89e62367e094aa71d",
+      "elapsed_msecs": 1008,
+      "result": "TIMEOUT"
+    },
+    {
+      "digest": "6b36abc94899ab1d25a9c48d7697916c",
+      "elapsed_msecs": 306,
+      "result": "UNSAT"
+    },
+    {
+      "digest": "6cd19dd137d2fce9b57b17067dfa4756",
+      "elapsed_msecs": 1008,
+      "result": "TIMEOUT"
+    },
+    {
+      "digest": "6ff98b815c0ff57d92086702e7dd2829",
+      "elapsed_msecs": 20,
+      "result": "UNSAT"
+    },
+    {
+      "digest": "787fd7b0f4d779fdabfbbd3dd29f8db4",
+      "elapsed_msecs": 170,
+      "result": "UNSAT"
+    },
+    {
+      "digest": "7b7d94844b730bd2015a6328464bc706",
+      "elapsed_msecs": 1002,
+      "result": "TIMEOUT"
+    },
+    {
+      "digest": "7c0296e111436f76c122df0d9cc07696",
+      "elapsed_msecs": 1001,
+      "result": "TIMEOUT"
+    },
+    {
+      "digest": "8345bdb88fa777b2940145d3306bbf7e",
+      "elapsed_msecs": 260,
+      "result": "SAT"
+    },
+    {
+      "digest": "866f6730afd797a244fea4f28ac3a218",
+      "elapsed_msecs": 184,
+      "result": "SAT"
+    },
+    {
+      "digest": "87262846343313aa8de488c4bd7b6683",
+      "elapsed_msecs": 505,
+      "result": "UNSAT"
+    },
+    {
+      "digest": "8bfd3f6019b4ce5f41426286f66fa807",
+      "elapsed_msecs": 1007,
+      "result": "TIMEOUT"
+    },
+    {
+      "digest": "8e67fca8a86f4cd5547021d77be4da93",
+      "elapsed_msecs": 1008,
+      "result": "TIMEOUT"
+    },
+    {
+      "digest": "8f787381b1368e1ac7dd85d587f55210",
+      "elapsed_msecs": 1003,
+      "result": "TIMEOUT"
+    },
+    {
+      "digest": "90fd3ab118c483a7d99707384c6c6c0a",
+      "elapsed_msecs": 400,
+      "result": "SAT"
+    },
+    {
+      "digest": "92dca1683b78f5de8e7591f94e9aa948",
+      "elapsed_msecs": 236,
+      "result": "SAT"
+    },
+    {
+      "digest": "988603bd72158a0c8491d29b7c62c04e",
+      "elapsed_msecs": 8,
+      "result": "UNSAT"
+    },
+    {
+      "digest": "9a9827b82f6ff4fd887f0ada83dd2eab",
+      "elapsed_msecs": 1000,
+      "result": "TIMEOUT"
+    },
+    {
+      "digest": "9a9e21318977d18e1d51a744adc7d854",
+      "elapsed_msecs": 1000,
+      "result": "TIMEOUT"
+    },
+    {
+      "digest": "a0002fecd87a54648cd3030af11cc813",
+      "elapsed_msecs": 1,
+      "result": "SAT"
+    },
+    {
+      "digest": "a277def937f2d67b91d8be7ea410a1a3",
+      "elapsed_msecs": 15,
+      "result": "SAT"
+    },
+    {
+      "digest": "a53f5bdf5c68f006c146f172fdd5a49d",
+      "elapsed_msecs": 1,
+      "result": "UNSAT"
+    },
+    {
+      "digest": "a9919a354663b96040f9b806a812d0d1",
+      "elapsed_msecs": 1001,
+      "result": "TIMEOUT"
+    },
+    {
+      "digest": "af35fbf18f3fd6a60f0ef4c38fb50d3e",
+      "elapsed_msecs": 1000,
+      "result": "TIMEOUT"
+    },
+    {
+      "digest": "b25ebc7ffb6c16da8eeb29669971d932",
+      "elapsed_msecs": 351,
+      "result": "SAT"
+    },
+    {
+      "digest": "b675ff0d198a1ddf59de56ac6e98481f",
+      "elapsed_msecs": 1000,
+      "result": "TIMEOUT"
+    },
+    {
+      "digest": "b7a4817403109ad6b761f9b0cbd5bcd1",
+      "elapsed_msecs": 116,
+      "result": "SAT"
+    },
+    {
+      "digest": "becda1f50323450f71052c12e2670a15",
+      "elapsed_msecs": 1002,
+      "result": "TIMEOUT"
+    },
+    {
+      "digest": "c3cc6d7dc2f972fa2d8b4830f230aacf",
+      "elapsed_msecs": 1000,
+      "result": "TIMEOUT"
+    },
+    {
+      "digest": "c7d10eee6ce5f663697f3146ec866c69",
+      "elapsed_msecs": 1000,
+      "result": "TIMEOUT"
+    },
+    {
+      "digest": "c7f30869e2222200eb837086a2198e39",
+      "elapsed_msecs": 1001,
+      "result": "TIMEOUT"
+    },
+    {
+      "digest": "ca0f34aa2c6e5be0567116afbb8b4045",
+      "elapsed_msecs": 1002,
+      "result": "TIMEOUT"
+    },
+    {
+      "digest": "cbeca117cfb441b828e931758b854d3c",
+      "elapsed_msecs": 0,
+      "result": "SAT"
+    },
+    {
+      "digest": "cfd1346d0bd598be135475ecd856eb9e",
+      "elapsed_msecs": 1000,
+      "result": "TIMEOUT"
+    },
+    {
+      "digest": "d89c0f6742978220b2ef27f104913931",
+      "elapsed_msecs": 1000,
+      "result": "TIMEOUT"
+    },
+    {
+      "digest": "e2756716a98bf5480cd292ae59ec6417",
+      "elapsed_msecs": 1007,
+      "result": "TIMEOUT"
+    },
+    {
+      "digest": "e4eab3cf8678b03835123608fdd268e4",
+      "elapsed_msecs": 1000,
+      "result": "TIMEOUT"
+    },
+    {
+      "digest": "e60248099ffb21bc281a8bbc18a4cd7f",
+      "elapsed_msecs": 1002,
+      "result": "TIMEOUT"
+    },
+    {
+      "digest": "e7ee9430abd1307b7fb47b378cfa834a",
+      "elapsed_msecs": 780,
+      "result": "UNSAT"
+    },
+    {
+      "digest": "eab89c4c64875472df90dbff468e3f68",
+      "elapsed_msecs": 1014,
+      "result": "TIMEOUT"
+    },
+    {
+      "digest": "f2a0158e6029a7535611c6a8113daada",
+      "elapsed_msecs": 107,
+      "result": "UNSAT"
+    },
+    {
+      "digest": "f349621e75ede4e9e9422b3d0f677268",
+      "elapsed_msecs": 4,
+      "result": "UNSAT"
+    },
+    {
+      "digest": "f42d2ce7b4efd3f96e063dd1f6fec7f1",
+      "elapsed_msecs": 14,
+      "result": "UNSAT"
+    },
+    {
+      "digest": "f92890120255523d223c4d234688d0f2",
+      "elapsed_msecs": 898,
+      "result": "UNSAT"
+    }
+  ],
+  "sorted_elapsed_times": [
+    0,
+    0,
+    0,
+    1,
+    1,
+    1,
+    4,
+    8,
+    14,
+    15,
+    16,
+    17,
+    20,
+    79,
+    107,
+    116,
+    170,
+    184,
+    208,
+    236,
+    260,
+    297,
+    306,
+    351,
+    400,
+    505,
+    537,
+    544,
+    581,
+    642,
+    654,
+    665,
+    780,
+    814,
+    898
+  ]
+}
