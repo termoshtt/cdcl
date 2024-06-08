@@ -2,9 +2,11 @@
 
 pub mod benchmark;
 mod brute_force;
+mod dpll;
 mod expr;
 
 pub use brute_force::*;
+pub use dpll::*;
 pub use expr::*;
 
 use std::{
