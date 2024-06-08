@@ -1,4 +1,4 @@
-use crate::{CancelToken, Expr, Solution, Solver, State, CNF};
+use crate::{take_minimal_id, CancelToken, Expr, Solution, Solver, State, CNF};
 
 pub struct BruteForce {}
 
@@ -10,13 +10,6 @@ impl Solver for BruteForce {
     fn solve_cancelable(&mut self, expr: CNF, cancel_token: CancelToken) -> Solution {
         brute_force(expr, take_minimal_id, cancel_token)
     }
-}
-
-pub fn take_minimal_id(cnf: &CNF) -> usize {
-    assert!(cnf.as_bool().is_none());
-    *cnf.variables()
-        .first()
-        .expect("Non-boolean CNF expression must have at least one variable.")
 }
 
 pub fn brute_force(input: CNF, selector: fn(&CNF) -> usize, cancel_token: CancelToken) -> Solution {

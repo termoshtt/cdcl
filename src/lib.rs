@@ -4,6 +4,7 @@ pub mod benchmark;
 mod brute_force;
 mod dpll;
 mod expr;
+mod selector;
 
 #[cfg(test)]
 pub(crate) mod testing;
@@ -11,6 +12,7 @@ pub(crate) mod testing;
 pub use brute_force::*;
 pub use dpll::*;
 pub use expr::*;
+pub use selector::*;
 
 use std::{
     collections::BTreeMap,
