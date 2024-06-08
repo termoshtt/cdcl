@@ -14,6 +14,7 @@ pub fn dpll(mut input: CNF, selector: fn(&CNF) -> usize, cancel_token: CancelTok
         return Solution::Canceled;
     }
 
+    // Unit propagation
     loop {
         let (state, mut removed) = input.take_unit_clauses();
         if state.is_empty() {

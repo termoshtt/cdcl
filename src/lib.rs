@@ -5,6 +5,9 @@ mod brute_force;
 mod dpll;
 mod expr;
 
+#[cfg(test)]
+pub(crate) mod testing;
+
 pub use brute_force::*;
 pub use dpll::*;
 pub use expr::*;

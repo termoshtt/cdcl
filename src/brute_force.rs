@@ -51,70 +51,18 @@ pub fn brute_force(input: CNF, selector: fn(&CNF) -> usize, cancel_token: Cancel
 #[cfg(test)]
 mod tests {
     use super::*;
-    use maplit::btreemap;
 
     #[test]
     fn test_brute_force() {
         let cancel_token = CancelToken::new();
-        // True
-        assert_eq!(
-            brute_force(CNF::from(true), take_minimal_id, cancel_token.clone()),
-            Solution::Sat(State::default())
-        );
-        // False
-        assert_eq!(
-            brute_force(CNF::from(false), take_minimal_id, cancel_token.clone()),
-            Solution::UnSat
-        );
 
-        // x3
-        assert_eq!(
-            brute_force(CNF::variable(3), take_minimal_id, cancel_token.clone()),
-            Solution::Sat(btreemap! { 3 => true })
-        );
-        // ¬x3
-        assert_eq!(
-            brute_force(!CNF::variable(3), take_minimal_id, cancel_token.clone()),
-            Solution::Sat(btreemap! { 3 => false })
-        );
-
-        // x3 ∧ x4
-        assert_eq!(
-            brute_force(
-                CNF::variable(3) & CNF::variable(4),
-                take_minimal_id,
-                cancel_token.clone()
-            ),
-            Solution::Sat(btreemap! { 3 => true, 4 => true })
-        );
-        // x3 ∧ ¬x4
-        assert_eq!(
-            brute_force(
-                !CNF::variable(3) & CNF::variable(4),
-                take_minimal_id,
-                cancel_token.clone()
-            ),
-            Solution::Sat(btreemap! { 3 => false, 4 => true })
-        );
-        // ¬x3 ∧ x4
-        assert_eq!(
-            brute_force(
-                !CNF::variable(3) & !CNF::variable(4),
-                take_minimal_id,
-                cancel_token.clone()
-            ),
-            Solution::Sat(btreemap! { 3 => false, 4 => false })
-        );
-
-        // x3 ∧ x4 ∧ x5
-        assert_eq!(
-            brute_force(
-                CNF::variable(3) & CNF::variable(4) & CNF::variable(5),
-                take_minimal_id,
-                cancel_token.clone()
-            ),
-            Solution::Sat(btreemap! { 3 => true, 4 => true, 5 => true })
-        );
+        for (expr, expected) in crate::testing::single_solution_cases() {
+            assert_eq!(
+                brute_force(expr.clone(), take_minimal_id, cancel_token.clone()),
+                expected,
+                "Failed on {expr:?}",
+            );
+        }
 
         // x3 ∨ x4
         let expr = CNF::variable(3) | CNF::variable(4);
