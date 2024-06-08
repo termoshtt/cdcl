@@ -81,7 +81,7 @@ pub fn benchmark(
     let mut sorted_elapsed_times: Vec<u128> = entries
         .iter()
         .filter_map(|e| {
-            if e.elapsed_msecs <= timeout_msecs {
+            if e.elapsed_msecs < timeout_msecs {
                 Some(e.elapsed_msecs)
             } else {
                 None
