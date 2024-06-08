@@ -45,6 +45,12 @@ impl Solution {
 #[derive(Clone)]
 pub struct CancelToken(Arc<AtomicBool>);
 
+impl Default for CancelToken {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CancelToken {
     pub fn new() -> Self {
         Self(Arc::new(AtomicBool::new(false)))
