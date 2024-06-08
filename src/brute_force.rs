@@ -22,7 +22,6 @@ pub fn brute_force(input: CNF, selector: fn(&CNF) -> usize, cancel_token: Cancel
     }
 
     if cancel_token.is_canceled() {
-        log::info!("Canceled");
         return Solution::Canceled;
     }
 

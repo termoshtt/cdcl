@@ -1,4 +1,15 @@
-use crate::{CancelToken, Expr, Solution, State, CNF};
+use crate::{take_minimal_id, CancelToken, Expr, Solution, Solver, State, CNF};
+
+pub struct DPLL {}
+
+impl Solver for DPLL {
+    fn name(&self) -> &'static str {
+        "dpll"
+    }
+    fn solve_cancelable(&mut self, expr: CNF, cancel_token: CancelToken) -> Solution {
+        dpll(expr, take_minimal_id, cancel_token)
+    }
+}
 
 pub fn dpll(mut input: CNF, selector: fn(&CNF) -> usize, cancel_token: CancelToken) -> Solution {
     let mut state = State::default();

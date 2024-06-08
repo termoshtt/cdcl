@@ -44,7 +44,7 @@ pub fn benchmark(
         match solution {
             Solution::Sat(_) => {
                 log::info!(
-                    "Solved ({i}/{n}): {} is SAT (in {:?})",
+                    "Solved  ({i}/{n}): {} is SAT (in {:?})",
                     digest.deref(),
                     elapsed
                 );
@@ -56,7 +56,7 @@ pub fn benchmark(
             }
             Solution::UnSat => {
                 log::info!(
-                    "Solved ({i}/{n}): {} is UNSAT (in {:?})",
+                    "Solved  ({i}/{n}): {} is UNSAT (in {:?})",
                     digest.deref(),
                     elapsed
                 );

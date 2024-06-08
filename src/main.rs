@@ -64,6 +64,7 @@ fn main() -> Result<()> {
     let args = Args::parse();
     let mut solver: Box<dyn Solver> = match args.algorithm.as_str() {
         "brute_force" => Box::new(BruteForce {}),
+        "dpll" => Box::new(DPLL {}),
         _ => bail!("Unknown algorithm: {}", args.algorithm),
     };
     let (title, digests) = args.digests()?;
