@@ -1,1 +1,9 @@
 target/
+
+# Benchmark results
+*.json
+
+# Jupyter
+Untitled*.ipynb
+*-checkpoint.ipynb
+.ipynb_checkpoints/

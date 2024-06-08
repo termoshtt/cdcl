@@ -7,6 +7,10 @@ use std::sync::{
 pub struct BruteForce {}
 
 impl Solver for BruteForce {
+    fn name(&self) -> &'static str {
+        "brute_force"
+    }
+
     fn solve_cancelable(&mut self, expr: CNF, cancel_token: Arc<AtomicBool>) -> Solution {
         brute_force(expr, take_minimal_id, cancel_token)
     }
