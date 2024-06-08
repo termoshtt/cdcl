@@ -39,17 +39,34 @@ impl Solution {
     }
 }
 
+#[derive(Clone)]
+pub struct CancelToken(Arc<AtomicBool>);
+
+impl CancelToken {
+    pub fn new() -> Self {
+        Self(Arc::new(AtomicBool::new(false)))
+    }
+
+    pub fn cancel(&self) {
+        self.0.store(true, Ordering::Relaxed);
+    }
+
+    pub fn is_canceled(&self) -> bool {
+        self.0.load(Ordering::Relaxed)
+    }
+}
+
 pub trait Solver {
     fn name(&self) -> &'static str;
 
-    fn solve_cancelable(&mut self, expr: CNF, cancel_token: Arc<AtomicBool>) -> Solution;
+    fn solve_cancelable(&mut self, expr: CNF, cancel_token: CancelToken) -> Solution;
 
     fn solve(&mut self, expr: CNF, timeout: Duration) -> Solution {
-        let cancel_token = Arc::new(AtomicBool::new(false));
+        let cancel_token = CancelToken::new();
         let t = cancel_token.clone();
         std::thread::spawn(move || {
             std::thread::sleep(timeout);
-            t.store(true, Ordering::Relaxed);
+            t.cancel();
         });
         self.solve_cancelable(expr, cancel_token)
     }

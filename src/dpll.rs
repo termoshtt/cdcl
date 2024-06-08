@@ -1,14 +1,6 @@
-use crate::{Expr, Solution, State, CNF};
-use std::sync::{
-    atomic::{AtomicBool, Ordering},
-    Arc,
-};
+use crate::{CancelToken, Expr, Solution, State, CNF};
 
-pub fn dpll(
-    mut input: CNF,
-    selector: fn(&CNF) -> usize,
-    cancel_token: Arc<AtomicBool>,
-) -> Solution {
+pub fn dpll(mut input: CNF, selector: fn(&CNF) -> usize, cancel_token: CancelToken) -> Solution {
     match *input.as_expr() {
         // Already solved
         Expr::True => return Solution::Sat(State::default()),
@@ -17,7 +9,7 @@ pub fn dpll(
         _ => {}
     }
 
-    if cancel_token.load(Ordering::Relaxed) {
+    if cancel_token.is_canceled() {
         log::info!("Canceled");
         return Solution::Canceled;
     }

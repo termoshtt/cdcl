@@ -1,8 +1,4 @@
-use crate::{Expr, Solution, Solver, State, CNF};
-use std::sync::{
-    atomic::{AtomicBool, Ordering},
-    Arc,
-};
+use crate::{CancelToken, Expr, Solution, Solver, State, CNF};
 
 pub struct BruteForce {}
 
@@ -11,7 +7,7 @@ impl Solver for BruteForce {
         "brute_force"
     }
 
-    fn solve_cancelable(&mut self, expr: CNF, cancel_token: Arc<AtomicBool>) -> Solution {
+    fn solve_cancelable(&mut self, expr: CNF, cancel_token: CancelToken) -> Solution {
         brute_force(expr, take_minimal_id, cancel_token)
     }
 }
@@ -23,11 +19,7 @@ pub fn take_minimal_id(cnf: &CNF) -> usize {
         .expect("Non-boolean CNF expression must have at least one variable.")
 }
 
-pub fn brute_force(
-    input: CNF,
-    selector: fn(&CNF) -> usize,
-    cancel_token: Arc<AtomicBool>,
-) -> Solution {
+pub fn brute_force(input: CNF, selector: fn(&CNF) -> usize, cancel_token: CancelToken) -> Solution {
     match *input.as_expr() {
         // Already solved
         Expr::True => return Solution::Sat(State::default()),
@@ -36,7 +28,7 @@ pub fn brute_force(
         _ => {}
     }
 
-    if cancel_token.load(Ordering::Relaxed) {
+    if cancel_token.is_canceled() {
         log::info!("Canceled");
         return Solution::Canceled;
     }
@@ -63,7 +55,7 @@ mod tests {
 
     #[test]
     fn test_brute_force() {
-        let cancel_token = Arc::new(AtomicBool::new(false));
+        let cancel_token = CancelToken::new();
         // True
         assert_eq!(
             brute_force(CNF::from(true), take_minimal_id, cancel_token.clone()),
