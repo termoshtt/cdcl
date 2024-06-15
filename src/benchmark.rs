@@ -1,6 +1,6 @@
 use crate::{Solution, Solver, CNF};
 use anyhow::Result;
-use rgbd::Digest;
+use rgbd::{Digest, SatResult};
 use serde::{Deserialize, Serialize};
 use std::{
     ops::Deref,
@@ -33,6 +33,7 @@ pub fn benchmark(
     digests: Vec<Digest>,
     timeout: Duration,
 ) -> Result<Report> {
+    let answers = rgbd::get_results()?;
     let n = digests.len();
     let mut entries = Vec::new();
 
@@ -41,6 +42,7 @@ pub fn benchmark(
         let start = Instant::now();
         let solution = solver.solve(expr, timeout);
         let elapsed = start.elapsed();
+        let answer = answers.get(digest.deref());
         match solution {
             Solution::Sat(_) => {
                 log::info!(
@@ -48,6 +50,14 @@ pub fn benchmark(
                     digest.deref(),
                     elapsed
                 );
+                if let Some(SatResult::UnSat) = answers.get(digest.deref()) {
+                    log::error!(
+                        "Wrong answer for {}: expected {:?}, got {:?}",
+                        digest.deref(),
+                        answer,
+                        solution
+                    );
+                }
                 entries.push(Entry {
                     digest: digest.to_string(),
                     elapsed_msecs: elapsed.as_millis(),
@@ -60,6 +70,14 @@ pub fn benchmark(
                     digest.deref(),
                     elapsed
                 );
+                if let Some(SatResult::Sat) = answers.get(digest.deref()) {
+                    log::error!(
+                        "Wrong answer for {}: expected {:?}, got {:?}",
+                        digest.deref(),
+                        answer,
+                        solution
+                    );
+                }
                 entries.push(Entry {
                     digest: digest.to_string(),
                     elapsed_msecs: elapsed.as_millis(),
