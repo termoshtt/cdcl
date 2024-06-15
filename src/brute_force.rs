@@ -1,8 +1,4 @@
-use crate::{Expr, Solution, Solver, State, CNF};
-use std::sync::{
-    atomic::{AtomicBool, Ordering},
-    Arc,
-};
+use crate::{take_minimal_id, CancelToken, Expr, Solution, Solver, State, CNF};
 
 pub struct BruteForce {}
 
@@ -11,23 +7,12 @@ impl Solver for BruteForce {
         "brute_force"
     }
 
-    fn solve_cancelable(&mut self, expr: CNF, cancel_token: Arc<AtomicBool>) -> Solution {
+    fn solve_cancelable(&mut self, expr: CNF, cancel_token: CancelToken) -> Solution {
         brute_force(expr, take_minimal_id, cancel_token)
     }
 }
 
-pub fn take_minimal_id(cnf: &CNF) -> usize {
-    assert!(cnf.as_bool().is_none());
-    *cnf.variables()
-        .first()
-        .expect("Non-boolean CNF expression must have at least one variable.")
-}
-
-pub fn brute_force(
-    input: CNF,
-    selector: fn(&CNF) -> usize,
-    cancel_token: Arc<AtomicBool>,
-) -> Solution {
+pub fn brute_force(input: CNF, selector: fn(&CNF) -> usize, cancel_token: CancelToken) -> Solution {
     match *input.as_expr() {
         // Already solved
         Expr::True => return Solution::Sat(State::default()),
@@ -36,8 +21,7 @@ pub fn brute_force(
         _ => {}
     }
 
-    if cancel_token.load(Ordering::Relaxed) {
-        log::info!("Canceled");
+    if cancel_token.is_canceled() {
         return Solution::Canceled;
     }
 
@@ -59,70 +43,18 @@ pub fn brute_force(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use maplit::btreemap;
 
     #[test]
     fn test_brute_force() {
-        let cancel_token = Arc::new(AtomicBool::new(false));
-        // True
-        assert_eq!(
-            brute_force(CNF::from(true), take_minimal_id, cancel_token.clone()),
-            Solution::Sat(State::default())
-        );
-        // False
-        assert_eq!(
-            brute_force(CNF::from(false), take_minimal_id, cancel_token.clone()),
-            Solution::UnSat
-        );
+        let cancel_token = CancelToken::new();
 
-        // x3
-        assert_eq!(
-            brute_force(CNF::variable(3), take_minimal_id, cancel_token.clone()),
-            Solution::Sat(btreemap! { 3 => true })
-        );
-        // ¬x3
-        assert_eq!(
-            brute_force(!CNF::variable(3), take_minimal_id, cancel_token.clone()),
-            Solution::Sat(btreemap! { 3 => false })
-        );
-
-        // x3 ∧ x4
-        assert_eq!(
-            brute_force(
-                CNF::variable(3) & CNF::variable(4),
-                take_minimal_id,
-                cancel_token.clone()
-            ),
-            Solution::Sat(btreemap! { 3 => true, 4 => true })
-        );
-        // x3 ∧ ¬x4
-        assert_eq!(
-            brute_force(
-                !CNF::variable(3) & CNF::variable(4),
-                take_minimal_id,
-                cancel_token.clone()
-            ),
-            Solution::Sat(btreemap! { 3 => false, 4 => true })
-        );
-        // ¬x3 ∧ x4
-        assert_eq!(
-            brute_force(
-                !CNF::variable(3) & !CNF::variable(4),
-                take_minimal_id,
-                cancel_token.clone()
-            ),
-            Solution::Sat(btreemap! { 3 => false, 4 => false })
-        );
-
-        // x3 ∧ x4 ∧ x5
-        assert_eq!(
-            brute_force(
-                CNF::variable(3) & CNF::variable(4) & CNF::variable(5),
-                take_minimal_id,
-                cancel_token.clone()
-            ),
-            Solution::Sat(btreemap! { 3 => true, 4 => true, 5 => true })
-        );
+        for (expr, expected) in crate::testing::single_solution_cases() {
+            assert_eq!(
+                brute_force(expr.clone(), take_minimal_id, cancel_token.clone()),
+                expected,
+                "Failed on {expr:?}",
+            );
+        }
 
         // x3 ∨ x4
         let expr = CNF::variable(3) | CNF::variable(4);

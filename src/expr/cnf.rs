@@ -1,4 +1,4 @@
-use super::Expr;
+use super::{Expr, State};
 use anyhow::Result;
 use std::{
     collections::BTreeSet,
@@ -136,6 +136,54 @@ impl CNF {
             expr => Box::new(Some(expr).into_iter()),
         }
     }
+
+    /// List up all unit clauses, single variable or its negation, as a [State] with remaining clauses as a new [CNF]
+    ///
+    /// ```rust
+    /// use cdcl::{CNF, State, Expr};
+    /// use maplit::btreemap;
+    ///
+    /// // x0 ∧ x1
+    /// let expr = CNF::variable(0) & CNF::variable(1);
+    /// let (state, cnf) = expr.take_unit_clauses();
+    /// assert_eq!(state, btreemap! { 0 => true, 1 => true });
+    /// assert_eq!(cnf, CNF::from(true));
+    ///
+    /// // x0 ∧ x1 ∧ (x2 ∨ x3)
+    /// let expr = CNF::variable(0) & CNF::variable(1) & (CNF::variable(2) | CNF::variable(3));
+    /// let (state, cnf) = expr.take_unit_clauses();
+    /// assert_eq!(state, btreemap! { 0 => true, 1 => true });
+    /// assert_eq!(cnf, CNF::variable(2) | CNF::variable(3));
+    /// ```
+    pub fn take_unit_clauses(&self) -> (State, CNF) {
+        let mut state = State::new();
+        let mut clauses = BTreeSet::new();
+        for clause in self.clauses() {
+            match clause {
+                Expr::Var { id } => {
+                    state.insert(*id, true);
+                }
+                Expr::Not(expr) => {
+                    if let Expr::Var { id } = expr.as_ref() {
+                        state.insert(*id, false);
+                    } else {
+                        clauses.insert(clause.clone());
+                    }
+                }
+                clause => {
+                    clauses.insert(clause.clone());
+                }
+            }
+        }
+        (
+            state,
+            CNF(match clauses.len() {
+                0 => Expr::True,
+                1 => clauses.first().unwrap().clone(),
+                _ => Expr::And(clauses),
+            }),
+        )
+    }
 }
 
 impl fmt::Debug for CNF {
@@ -195,24 +243,5 @@ impl Not for CNF {
             Expr::Or(inner) => CNF(Expr::And(inner.into_iter().map(Not::not).collect())),
             a => CNF(!a),
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::CNF;
-
-    #[test]
-    fn dimacs_comment() {
-        CNF::from_dimacs_format(
-            r#"
-            c This is a comment
-            p cnf 5 3
-            1 -5 4 0
-            -1 5 3 4 0
-            -3 -4 0
-            "#,
-        )
-        .unwrap();
     }
 }

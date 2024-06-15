@@ -1,0 +1,278 @@
+{
+  "solver": "dpll",
+  "timeout_msecs": 1000,
+  "entries": [
+    {
+      "digest": "02b69d0e5c2b68d5c3d650164b6c277d",
+      "elapsed_msecs": 103,
+      "result": "SAT"
+    },
+    {
+      "digest": "04fef94bab64c9e3cc8b2b696f38f7be",
+      "elapsed_msecs": 1007,
+      "result": "TIMEOUT"
+    },
+    {
+      "digest": "0662df257be6c6d0691729cb23a17386",
+      "elapsed_msecs": 1007,
+      "result": "TIMEOUT"
+    },
+    {
+      "digest": "079b877e6d9da81bd36fc7bf8a812aa2",
+      "elapsed_msecs": 566,
+      "result": "SAT"
+    },
+    {
+      "digest": "1cf67760092ebabc1bb42706fb8d43dc",
+      "elapsed_msecs": 1,
+      "result": "SAT"
+    },
+    {
+      "digest": "2367a7e13ff5d039978a26c3081a4342",
+      "elapsed_msecs": 414,
+      "result": "SAT"
+    },
+    {
+      "digest": "23a92c04ee9248308a18d6a44e5d15f0",
+      "elapsed_msecs": 0,
+      "result": "SAT"
+    },
+    {
+      "digest": "2b738a1991a7318cad993a809b10cc2c",
+      "elapsed_msecs": 1,
+      "result": "UNSAT"
+    },
+    {
+      "digest": "2d1d8789282286c8b905cc1b032e70b1",
+      "elapsed_msecs": 501,
+      "result": "SAT"
+    },
+    {
+      "digest": "2f89954fdd88bea47db9a68279c1cec2",
+      "elapsed_msecs": 1008,
+      "result": "TIMEOUT"
+    },
+    {
+      "digest": "3eaa112593cb66052d579c16f3d5a37e",
+      "elapsed_msecs": 707,
+      "result": "SAT"
+    },
+    {
+      "digest": "405ac3c537e97b70364438d64c69e8bf",
+      "elapsed_msecs": 1002,
+      "result": "TIMEOUT"
+    },
+    {
+      "digest": "43e1cc469be3087b024dc0b5f4b01d5c",
+      "elapsed_msecs": 1001,
+      "result": "TIMEOUT"
+    },
+    {
+      "digest": "47e3b78c2157b685e23b53915a1b33b5",
+      "elapsed_msecs": 3,
+      "result": "UNSAT"
+    },
+    {
+      "digest": "4b7ca3eb0be96a25f119e8238d5da1f6",
+      "elapsed_msecs": 366,
+      "result": "SAT"
+    },
+    {
+      "digest": "4ee84e1c09d0b8434879475eccc9dc29",
+      "elapsed_msecs": 240,
+      "result": "SAT"
+    },
+    {
+      "digest": "4efecd99c585a00761bc52113f4ac456",
+      "elapsed_msecs": 1001,
+      "result": "TIMEOUT"
+    },
+    {
+      "digest": "5147f6d99a48a5a8b7b8fb044dc97e2a",
+      "elapsed_msecs": 3,
+      "result": "UNSAT"
+    },
+    {
+      "digest": "5f05cfd0e76583aad3a73d26670e8387",
+      "elapsed_msecs": 1003,
+      "result": "TIMEOUT"
+    },
+    {
+      "digest": "6176faf90d04b943e72346f634a1577e",
+      "elapsed_msecs": 1001,
+      "result": "TIMEOUT"
+    },
+    {
+      "digest": "6478d3d66cf12fe89e62367e094aa71d",
+      "elapsed_msecs": 1007,
+      "result": "TIMEOUT"
+    },
+    {
+      "digest": "6cd19dd137d2fce9b57b17067dfa4756",
+      "elapsed_msecs": 1010,
+      "result": "TIMEOUT"
+    },
+    {
+      "digest": "6ff98b815c0ff57d92086702e7dd2829",
+      "elapsed_msecs": 11,
+      "result": "UNSAT"
+    },
+    {
+      "digest": "787fd7b0f4d779fdabfbbd3dd29f8db4",
+      "elapsed_msecs": 87,
+      "result": "UNSAT"
+    },
+    {
+      "digest": "7b7d94844b730bd2015a6328464bc706",
+      "elapsed_msecs": 1001,
+      "result": "TIMEOUT"
+    },
+    {
+      "digest": "8345bdb88fa777b2940145d3306bbf7e",
+      "elapsed_msecs": 182,
+      "result": "SAT"
+    },
+    {
+      "digest": "866f6730afd797a244fea4f28ac3a218",
+      "elapsed_msecs": 129,
+      "result": "SAT"
+    },
+    {
+      "digest": "8bfd3f6019b4ce5f41426286f66fa807",
+      "elapsed_msecs": 1007,
+      "result": "TIMEOUT"
+    },
+    {
+      "digest": "8e67fca8a86f4cd5547021d77be4da93",
+      "elapsed_msecs": 1007,
+      "result": "TIMEOUT"
+    },
+    {
+      "digest": "8f787381b1368e1ac7dd85d587f55210",
+      "elapsed_msecs": 1003,
+      "result": "TIMEOUT"
+    },
+    {
+      "digest": "90fd3ab118c483a7d99707384c6c6c0a",
+      "elapsed_msecs": 303,
+      "result": "SAT"
+    },
+    {
+      "digest": "92dca1683b78f5de8e7591f94e9aa948",
+      "elapsed_msecs": 173,
+      "result": "SAT"
+    },
+    {
+      "digest": "9a9827b82f6ff4fd887f0ada83dd2eab",
+      "elapsed_msecs": 190,
+      "result": "UNSAT"
+    },
+    {
+      "digest": "a0002fecd87a54648cd3030af11cc813",
+      "elapsed_msecs": 0,
+      "result": "SAT"
+    },
+    {
+      "digest": "a277def937f2d67b91d8be7ea410a1a3",
+      "elapsed_msecs": 19,
+      "result": "SAT"
+    },
+    {
+      "digest": "a53f5bdf5c68f006c146f172fdd5a49d",
+      "elapsed_msecs": 1,
+      "result": "UNSAT"
+    },
+    {
+      "digest": "a9919a354663b96040f9b806a812d0d1",
+      "elapsed_msecs": 840,
+      "result": "UNSAT"
+    },
+    {
+      "digest": "b25ebc7ffb6c16da8eeb29669971d932",
+      "elapsed_msecs": 283,
+      "result": "SAT"
+    },
+    {
+      "digest": "b7a4817403109ad6b761f9b0cbd5bcd1",
+      "elapsed_msecs": 92,
+      "result": "SAT"
+    },
+    {
+      "digest": "c7d10eee6ce5f663697f3146ec866c69",
+      "elapsed_msecs": 1000,
+      "result": "TIMEOUT"
+    },
+    {
+      "digest": "cbeca117cfb441b828e931758b854d3c",
+      "elapsed_msecs": 0,
+      "result": "SAT"
+    },
+    {
+      "digest": "cfd1346d0bd598be135475ecd856eb9e",
+      "elapsed_msecs": 1000,
+      "result": "TIMEOUT"
+    },
+    {
+      "digest": "e2756716a98bf5480cd292ae59ec6417",
+      "elapsed_msecs": 1008,
+      "result": "TIMEOUT"
+    },
+    {
+      "digest": "e4eab3cf8678b03835123608fdd268e4",
+      "elapsed_msecs": 652,
+      "result": "UNSAT"
+    },
+    {
+      "digest": "e60248099ffb21bc281a8bbc18a4cd7f",
+      "elapsed_msecs": 1004,
+      "result": "TIMEOUT"
+    },
+    {
+      "digest": "f2a0158e6029a7535611c6a8113daada",
+      "elapsed_msecs": 39,
+      "result": "UNSAT"
+    },
+    {
+      "digest": "f349621e75ede4e9e9422b3d0f677268",
+      "elapsed_msecs": 1,
+      "result": "UNSAT"
+    },
+    {
+      "digest": "f42d2ce7b4efd3f96e063dd1f6fec7f1",
+      "elapsed_msecs": 2,
+      "result": "UNSAT"
+    }
+  ],
+  "sorted_elapsed_times": [
+    0,
+    0,
+    0,
+    1,
+    1,
+    1,
+    1,
+    2,
+    3,
+    3,
+    11,
+    19,
+    39,
+    87,
+    92,
+    103,
+    129,
+    173,
+    182,
+    190,
+    240,
+    283,
+    303,
+    366,
+    414,
+    501,
+    566,
+    652,
+    707,
+    840
+  ]
+}
