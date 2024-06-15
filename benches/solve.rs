@@ -2,9 +2,10 @@ use cdcl::{Solver, CNF, DPLL};
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 
 const SAT_DIGETS: &[&str] = &[
-    "0ef68fc7aa6f2bc7fb74ada9d865da06",
-    "2367a7e13ff5d039978a26c3081a4342",
-    "3eaa112593cb66052d579c16f3d5a37e",
+    "7e19f295d35c30ac4d5386ffec1fcf28", // ~10ms
+    "866f6730afd797a244fea4f28ac3a218", // ~140ms
+    "8345bdb88fa777b2940145d3306bbf7e", // ~200ms
+    "2367a7e13ff5d039978a26c3081a4342", // ~400ms
 ];
 const UNSAT_DIGEST: &[&str] = &[
     "38de0de52a209b6d0beb50986fd8b506",
