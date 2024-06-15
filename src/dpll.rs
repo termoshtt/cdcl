@@ -1,5 +1,6 @@
 use crate::{take_minimal_id, CancelToken, Expr, Solution, Solver, State, CNF};
 
+#[derive(Default)]
 pub struct DPLL {}
 
 impl Solver for DPLL {
