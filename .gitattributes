@@ -1,1 +1,2 @@
 *.json linguist-generated=true
+*.ipynb linguist-vendored
