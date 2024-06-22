@@ -1,6 +1,7 @@
 use anyhow::{bail, Result};
 use cdcl::*;
 use clap::Parser;
+use env_logger::{Builder, Env};
 use rgbd::Digest;
 use std::{fs, path::PathBuf, time::Duration};
 
@@ -13,15 +14,22 @@ struct Args {
     max_num_variables: Option<usize>,
     #[arg(short = 'c', long)]
     max_num_clauses: Option<usize>,
+    #[arg(long)]
+    track: Option<String>,
     #[arg(short = 't', long, default_value = "1")]
     timeout_secs: u64,
 }
 
 impl Args {
     fn digests(&self) -> Result<(String, Vec<Digest>)> {
+        if let Some(track) = &self.track {
+            return Ok((track.clone(), rgbd::get_track(track)?));
+        }
+
         if let Some(digest) = &self.digest {
             return Ok((digest.clone(), vec![rgbd::Digest::new(digest.parse()?)]));
         }
+
         let (title, f): (_, Box<dyn Fn(rgbd::Size) -> bool>) =
             match (self.max_num_variables, self.max_num_clauses) {
                 (Some(max_num_variables), None) => (
@@ -57,9 +65,7 @@ impl Args {
 }
 
 fn main() -> Result<()> {
-    env_logger::Builder::from_default_env()
-        .filter(None, log::LevelFilter::Info)
-        .init();
+    Builder::from_env(Env::default().filter_or("RUST_LOG", "info")).init();
 
     let args = Args::parse();
     let mut solver: Box<dyn Solver> = match args.algorithm.as_str() {

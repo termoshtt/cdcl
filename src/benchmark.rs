@@ -33,12 +33,14 @@ pub fn benchmark(
     digests: Vec<Digest>,
     timeout: Duration,
 ) -> Result<Report> {
-    let answers = rgbd::get_results()?;
     let n = digests.len();
+    let answers = rgbd::get_results()?;
     let mut entries = Vec::new();
 
     for (i, digest) in digests.iter().enumerate() {
+        log::trace!("{:<7} ({i}/{n}): {}", "Loading", digest.deref());
         let expr = CNF::from_rgbd(digest.read()?);
+        log::trace!("{:<7} ({i}/{n}): {}", "Solving", digest.deref());
         let start = Instant::now();
         let solution = solver.solve(expr, timeout);
         let elapsed = start.elapsed();
@@ -46,7 +48,8 @@ pub fn benchmark(
         match solution {
             Solution::Sat(_) => {
                 log::info!(
-                    "Solved  ({i}/{n}): {} is SAT (in {:?})",
+                    "{:<7} ({i}/{n}): {} is SAT (in {:?})",
+                    "Solved",
                     digest.deref(),
                     elapsed
                 );
@@ -66,7 +69,8 @@ pub fn benchmark(
             }
             Solution::UnSat => {
                 log::info!(
-                    "Solved  ({i}/{n}): {} is UNSAT (in {:?})",
+                    "{:<7} ({i}/{n}): {} is UNSAT (in {:?})",
+                    "Solved",
                     digest.deref(),
                     elapsed
                 );
@@ -85,7 +89,12 @@ pub fn benchmark(
                 });
             }
             Solution::Canceled => {
-                log::info!("Timeout ({i}/{n}): {} (in {:?})", digest.deref(), elapsed);
+                log::info!(
+                    "{:<7} ({i}/{n}): {} (in {:?})",
+                    "Timeout",
+                    digest.deref(),
+                    elapsed
+                );
                 entries.push(Entry {
                     digest: digest.to_string(),
                     elapsed_msecs: elapsed.as_millis(),
