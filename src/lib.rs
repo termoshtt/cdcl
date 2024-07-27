@@ -2,6 +2,7 @@
 
 pub mod benchmark;
 mod brute_force;
+mod cdcl;
 mod dpll;
 mod expr;
 mod selector;
@@ -10,6 +11,7 @@ mod selector;
 pub(crate) mod testing;
 
 pub use brute_force::*;
+pub use cdcl::*;
 pub use dpll::*;
 pub use expr::*;
 pub use selector::*;
