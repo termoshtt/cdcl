@@ -1,5 +1,6 @@
 use super::{Expr, State};
 use anyhow::Result;
+use maplit::btreeset;
 use std::{
     collections::BTreeSet,
     fmt,
@@ -7,10 +8,21 @@ use std::{
     ops::{BitAnd, BitOr, Not},
 };
 
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Literal {
     pub id: NonZeroU32,
     pub positive: bool,
+}
+
+impl Not for Literal {
+    type Output = Self;
+
+    fn not(self) -> Self::Output {
+        Self::Output {
+            positive: !self.positive,
+            ..self
+        }
+    }
 }
 
 impl PartialOrd for Literal {
@@ -39,6 +51,71 @@ impl fmt::Display for Literal {
 }
 
 impl fmt::Debug for Literal {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self)
+    }
+}
+
+#[derive(Clone, PartialEq, Eq, Hash)]
+pub enum Clause {
+    Valid { literals: BTreeSet<Literal> },
+    Conflicted,
+}
+
+impl Clause {
+    pub fn as_unit(&self) -> Option<Literal> {
+        match self {
+            Self::Valid { literals } => {
+                if literals.len() == 1 {
+                    literals.iter().next().copied()
+                } else {
+                    None
+                }
+            }
+            Self::Conflicted => None,
+        }
+    }
+
+    pub fn substitute(&mut self, lit: Literal) {
+        if let Self::Valid { literals } = self {
+            // Remove the literal itself
+            literals.take(&lit);
+
+            // If the clause contains the negation of the literal, it means the clause is conflicted
+            if literals.take(&!lit).is_some() {
+                *self = Self::Conflicted;
+            };
+        }
+        // Do nothing if the clause is already conflicted
+    }
+}
+
+impl From<Literal> for Clause {
+    fn from(literal: Literal) -> Self {
+        Self::Valid {
+            literals: btreeset! {literal},
+        }
+    }
+}
+
+impl fmt::Display for Clause {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Self::Conflicted => write!(f, "⊥"),
+            Self::Valid { literals } => {
+                for (i, literal) in literals.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, " ∨ ")?;
+                    }
+                    write!(f, "{}", literal)?;
+                }
+                Ok(())
+            }
+        }
+    }
+}
+
+impl fmt::Debug for Clause {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self)
     }
