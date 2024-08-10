@@ -9,7 +9,7 @@ use std::{
 mod cnf;
 mod dnf;
 
-pub use cnf::CNF;
+pub use cnf::*;
 pub use dnf::DNF;
 
 /// Expression in Boolean logic.

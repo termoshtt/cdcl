@@ -14,6 +14,21 @@ pub struct Literal {
     pub positive: bool,
 }
 
+impl Literal {
+    pub fn new(id: u32, positive: bool) -> Self {
+        Self {
+            id: NonZeroU32::new(id).expect("0 is not allowed for ID"),
+            positive,
+        }
+    }
+}
+
+impl From<u32> for Literal {
+    fn from(id: u32) -> Self {
+        Self::new(id, true)
+    }
+}
+
 impl Not for Literal {
     type Output = Self;
 
@@ -56,13 +71,57 @@ impl fmt::Debug for Literal {
     }
 }
 
+/// A clause in [Conjunctive Normal Form](https://en.wikipedia.org/wiki/Conjunctive_normal_form)
+///
+/// # Order
+///
+/// - `Clause::Conflicted` is always less than any other clauses
+/// - Other clauses are in graded lexical order, i.e. the number of literals is the primary key.
+///
+/// ```rust
+/// use cdcl::Clause;
+///
+/// let a = Clause::from_literals(&[1.into(), 2.into()]);
+/// let b = Clause::from_literals(&[1.into()]);
+/// let c = Clause::from_literals(&[2.into()]);
+/// let d = Clause::from_literals(&[]);
+/// let e = Clause::Conflicted;
+///
+/// assert!(e < d);
+/// assert!(d < b);
+/// assert!(b < c); // since 1 < 2
+/// assert!(c < a);
+/// ```
+///
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub enum Clause {
     Valid { literals: BTreeSet<Literal> },
     Conflicted,
 }
 
+impl PartialOrd for Clause {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        match (self, other) {
+            (Self::Valid { literals: a }, Self::Valid { literals: b }) => {
+                match a.len().partial_cmp(&b.len()) {
+                    Some(std::cmp::Ordering::Equal) => a.partial_cmp(b),
+                    ordering => ordering,
+                }
+            }
+            (Self::Conflicted, Self::Conflicted) => Some(std::cmp::Ordering::Equal),
+            (Self::Conflicted, Self::Valid { .. }) => Some(std::cmp::Ordering::Less),
+            (Self::Valid { .. }, Self::Conflicted) => Some(std::cmp::Ordering::Greater),
+        }
+    }
+}
+
 impl Clause {
+    pub fn from_literals(literals: &[Literal]) -> Self {
+        Self::Valid {
+            literals: literals.iter().cloned().collect(),
+        }
+    }
+
     pub fn as_unit(&self) -> Option<Literal> {
         match self {
             Self::Valid { literals } => {
