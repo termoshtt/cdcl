@@ -3,8 +3,46 @@ use anyhow::Result;
 use std::{
     collections::BTreeSet,
     fmt,
+    num::NonZeroU32,
     ops::{BitAnd, BitOr, Not},
 };
+
+#[derive(Clone, PartialEq, Eq, Hash)]
+pub struct Literal {
+    pub id: NonZeroU32,
+    pub positive: bool,
+}
+
+impl PartialOrd for Literal {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        match self.id.partial_cmp(&other.id)? {
+            std::cmp::Ordering::Equal => self.positive.partial_cmp(&other.positive),
+            ordering => Some(ordering),
+        }
+    }
+}
+
+impl Ord for Literal {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.partial_cmp(other).unwrap()
+    }
+}
+
+impl fmt::Display for Literal {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        if self.positive {
+            write!(f, "x{}", self.id)
+        } else {
+            write!(f, "¬x{}", self.id)
+        }
+    }
+}
+
+impl fmt::Debug for Literal {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self)
+    }
+}
 
 /// An [Expr] in [Conjunctive Normal Form](https://en.wikipedia.org/wiki/Conjunctive_normal_form)
 ///
