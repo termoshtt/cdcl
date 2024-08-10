@@ -8,6 +8,25 @@ use std::{
     ops::{BitAnd, BitOr, Not},
 };
 
+/// A literal in [Conjunctive Normal Form](https://en.wikipedia.org/wiki/Conjunctive_normal_form)
+///
+/// # Order
+///
+/// - Literals are ordered by their ID
+/// - If the IDs are the same, positive literals are less than negative literals
+///
+/// ```rust
+/// use cdcl::Literal;
+///
+/// let a = Literal::new(1, true);
+/// let b = Literal::new(1, false);
+/// let c = Literal::new(2, true);
+/// let d = Literal::new(2, false);
+///
+/// assert!(a < b); // x1 < ¬x1
+/// assert!(b < c); // ¬x1 < x2
+/// assert!(c < d); // x2 < ¬x2
+/// ```
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Literal {
     pub id: NonZeroU32,
@@ -42,16 +61,16 @@ impl Not for Literal {
 
 impl PartialOrd for Literal {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        match self.id.partial_cmp(&other.id)? {
-            std::cmp::Ordering::Equal => self.positive.partial_cmp(&other.positive),
-            ordering => Some(ordering),
-        }
+        Some(self.cmp(other))
     }
 }
 
 impl Ord for Literal {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.partial_cmp(other).unwrap()
+        match self.id.cmp(&other.id) {
+            std::cmp::Ordering::Equal => self.positive.cmp(&other.positive).reverse(),
+            ordering => ordering,
+        }
     }
 }
 
