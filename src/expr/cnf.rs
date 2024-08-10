@@ -120,16 +120,22 @@ pub enum Clause {
 
 impl PartialOrd for Clause {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for Clause {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         match (self, other) {
             (Self::Valid { literals: a }, Self::Valid { literals: b }) => {
-                match a.len().partial_cmp(&b.len()) {
-                    Some(std::cmp::Ordering::Equal) => a.partial_cmp(b),
+                match a.len().cmp(&b.len()) {
+                    std::cmp::Ordering::Equal => a.cmp(b),
                     ordering => ordering,
                 }
             }
-            (Self::Conflicted, Self::Conflicted) => Some(std::cmp::Ordering::Equal),
-            (Self::Conflicted, Self::Valid { .. }) => Some(std::cmp::Ordering::Less),
-            (Self::Valid { .. }, Self::Conflicted) => Some(std::cmp::Ordering::Greater),
+            (Self::Conflicted, Self::Conflicted) => std::cmp::Ordering::Equal,
+            (Self::Conflicted, Self::Valid { .. }) => std::cmp::Ordering::Less,
+            (Self::Valid { .. }, Self::Conflicted) => std::cmp::Ordering::Greater,
         }
     }
 }
