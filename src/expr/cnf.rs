@@ -18,10 +18,10 @@ use std::{
 /// ```rust
 /// use cdcl::Literal;
 ///
-/// let a = Literal::new(1, true);
-/// let b = Literal::new(1, false);
-/// let c = Literal::new(2, true);
-/// let d = Literal::new(2, false);
+/// let a = Literal::new(1);
+/// let b = Literal::new(-1);
+/// let c = Literal::new(2);
+/// let d = Literal::new(-2);
 ///
 /// assert!(a < b); // x1 < ¬x1
 /// assert!(b < c); // ¬x1 < x2
@@ -34,17 +34,26 @@ pub struct Literal {
 }
 
 impl Literal {
-    pub fn new(id: u32, positive: bool) -> Self {
-        Self {
-            id: NonZeroU32::new(id).expect("0 is not allowed for ID"),
-            positive,
+    /// Similar to DIMACS format, literals are 1-indexed and negative literals are negated
+    pub fn new(lit: i32) -> Self {
+        assert!(lit != 0, "0 is not allowed for ID");
+        if lit > 0 {
+            Self {
+                id: NonZeroU32::new(lit as u32).unwrap(),
+                positive: true,
+            }
+        } else {
+            Self {
+                id: NonZeroU32::new((-lit) as u32).unwrap(),
+                positive: false,
+            }
         }
     }
 }
 
-impl From<u32> for Literal {
-    fn from(id: u32) -> Self {
-        Self::new(id, true)
+impl From<i32> for Literal {
+    fn from(id: i32) -> Self {
+        Self::new(id)
     }
 }
 
@@ -178,6 +187,14 @@ impl From<Literal> for Clause {
     fn from(literal: Literal) -> Self {
         Self::Valid {
             literals: btreeset! {literal},
+        }
+    }
+}
+
+impl From<Vec<i32>> for Clause {
+    fn from(literals: Vec<i32>) -> Self {
+        Self::Valid {
+            literals: literals.into_iter().map(Literal::new).collect(),
         }
     }
 }
