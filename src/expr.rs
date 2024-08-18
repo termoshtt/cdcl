@@ -225,7 +225,7 @@ impl Expr {
 
     pub fn evaluate(&self, state: &State) -> Expr {
         match self {
-            Expr::Var { id } => state.contains_key(id).into(),
+            Expr::Var { id } => todo!(),
             Expr::Not(e) => !e.evaluate(state),
             Expr::And(inner) => inner
                 .iter()

@@ -15,7 +15,7 @@ pub use expr::*;
 pub use selector::*;
 
 use std::{
-    collections::BTreeMap,
+    collections::BTreeSet,
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc,
@@ -23,7 +23,7 @@ use std::{
     time::Duration,
 };
 
-pub type State = BTreeMap<usize, bool>;
+pub type State = BTreeSet<Literal>;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Solution {

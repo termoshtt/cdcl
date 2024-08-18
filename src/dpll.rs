@@ -1,4 +1,5 @@
-use crate::{take_minimal_id, CancelToken, Expr, Solution, Solver, State, CNF};
+use crate::{take_minimal_id, CancelToken, Literal, Solution, Solver, State, CNF};
+use std::num::NonZeroU32;
 
 #[derive(Default)]
 pub struct DPLL {}
@@ -12,7 +13,11 @@ impl Solver for DPLL {
     }
 }
 
-pub fn dpll(mut input: CNF, selector: fn(&CNF) -> usize, cancel_token: CancelToken) -> Solution {
+pub fn dpll(
+    mut input: CNF,
+    selector: fn(&CNF) -> NonZeroU32,
+    cancel_token: CancelToken,
+) -> Solution {
     let mut state = State::default();
 
     // Unit propagation
@@ -25,28 +30,30 @@ pub fn dpll(mut input: CNF, selector: fn(&CNF) -> usize, cancel_token: CancelTok
             assert_eq!(removed, input);
             break;
         }
-        for (id, value) in units.into_iter() {
-            removed = removed.substitute(id, value);
-            state.insert(id, value);
+        for lit in units.into_iter() {
+            removed.substitute(lit);
+            state.insert(lit);
         }
         input = removed;
     }
 
-    match *input.as_expr() {
-        // Already solved
-        Expr::True => return Solution::Sat(state),
-        // Never feasible
-        Expr::False => return Solution::UnSat,
-        _ => {}
+    if let Some(solution) = input.is_solved() {
+        return solution;
     }
 
     let fix = selector(&input);
     for value in [true, false] {
-        log::trace!("Set x{} = {}", fix, value);
-        match dpll(input.substitute(fix, value), selector, cancel_token.clone()) {
+        let lit = Literal {
+            id: fix,
+            positive: value,
+        };
+        log::trace!("Decision: {}", lit);
+        let mut new = input.clone();
+        new.substitute(lit);
+        match dpll(new, selector, cancel_token.clone()) {
             Solution::Sat(mut sub_state) => {
                 state.append(&mut sub_state);
-                state.insert(fix, value);
+                state.insert(lit);
                 return Solution::Sat(state);
             }
             Solution::UnSat => continue,
