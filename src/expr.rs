@@ -248,11 +248,6 @@ impl Expr {
             _ => Default::default(),
         }
     }
-
-    /// Returns the conjunctive normal form of the expression.
-    pub fn cnf(self) -> Expr {
-        todo!()
-    }
 }
 
 impl From<usize> for Expr {

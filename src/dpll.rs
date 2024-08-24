@@ -25,16 +25,14 @@ pub fn dpll(
         if cancel_token.is_canceled() {
             return Solution::Canceled;
         }
-        let (units, mut removed) = input.take_unit_clauses();
+        let units = input.take_unit_clauses();
         if units.is_empty() {
-            assert_eq!(removed, input);
             break;
         }
         for lit in units.into_iter() {
-            removed.substitute(lit);
+            input.substitute(lit);
             state.insert(lit);
         }
-        input = removed;
     }
 
     if let Some(solution) = input.is_solved() {

@@ -386,8 +386,19 @@ impl CNF {
     /// assert_eq!(state, btreemap! { 0 => true, 1 => true });
     /// assert_eq!(cnf, CNF::lit(2) | CNF::lit(3));
     /// ```
-    pub fn take_unit_clauses(&self) -> (State, CNF) {
-        todo!()
+    pub fn take_unit_clauses(&self) -> State {
+        match self {
+            Self::Valid(clauses) => {
+                let mut state = State::default();
+                for clause in clauses {
+                    if let Some(lit) = clause.as_unit() {
+                        state.insert(lit);
+                    }
+                }
+                state
+            }
+            Self::Conflicted => State::default(),
+        }
     }
 }
 
