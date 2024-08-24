@@ -1,6 +1,6 @@
 use crate::Solution;
 
-use super::{Expr, State};
+use super::State;
 use anyhow::Result;
 use maplit::btreeset;
 use std::{
@@ -28,6 +28,22 @@ use std::{
 /// assert!(a < b); // x1 < ¬x1
 /// assert!(b < c); // ¬x1 < x2
 /// assert!(c < d); // x2 < ¬x2
+/// ```
+///
+/// # Operations
+///
+/// `|` operator is overloaded to create a [Clause] from two literals
+///
+/// ```rust
+/// use cdcl::Literal;
+///
+/// let a = Literal::new(1);
+/// let b = Literal::new(-1);
+/// let c = Literal::new(2);
+///
+/// assert_eq!((a | a).to_string(), "x1"); // deduped
+/// assert_eq!((a | b).to_string(), "x1 ∨ ¬x1");
+/// assert_eq!((a | b | c).to_string(), "x1 ∨ ¬x1 ∨ x2");
 /// ```
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Literal {
@@ -98,6 +114,28 @@ impl fmt::Display for Literal {
 impl fmt::Debug for Literal {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self)
+    }
+}
+
+impl BitOr for Literal {
+    type Output = Clause;
+    fn bitor(self, rhs: Self) -> Self::Output {
+        Clause::Valid {
+            literals: btreeset! {self, rhs},
+        }
+    }
+}
+
+impl BitOr<Clause> for Literal {
+    type Output = Clause;
+    fn bitor(self, rhs: Clause) -> Self::Output {
+        match rhs {
+            Clause::Valid { mut literals } => {
+                literals.insert(self);
+                Clause::Valid { literals }
+            }
+            Clause::Conflicted => Clause::Conflicted,
+        }
     }
 }
 
@@ -221,6 +259,32 @@ impl fmt::Display for Clause {
 impl fmt::Debug for Clause {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self)
+    }
+}
+
+impl BitOr for Clause {
+    type Output = Self;
+    fn bitor(self, rhs: Self) -> Self {
+        match (self, rhs) {
+            (Clause::Valid { mut literals }, Clause::Valid { literals: mut rhs }) => {
+                literals.append(&mut rhs);
+                Clause::Valid { literals }
+            }
+            _ => Clause::Conflicted,
+        }
+    }
+}
+
+impl BitOr<Literal> for Clause {
+    type Output = Self;
+    fn bitor(self, rhs: Literal) -> Self {
+        match self {
+            Clause::Valid { mut literals } => {
+                literals.insert(rhs);
+                Clause::Valid { literals }
+            }
+            Clause::Conflicted => Clause::Conflicted,
+        }
     }
 }
 
@@ -444,14 +508,24 @@ impl BitOr for CNF {
     type Output = Self;
 
     fn bitor(self, rhs: Self) -> Self {
-        todo!()
+        let (CNF::Valid(lhs), CNF::Valid(rhs)) = (self, rhs) else {
+            return CNF::Conflicted;
+        };
+        let mut inner = Vec::new();
+        for c in &lhs {
+            for d in &rhs {
+                inner.push(c.clone() | d.clone())
+            }
+        }
+        inner.sort_unstable();
+        inner.dedup();
+        CNF::Valid(inner)
     }
 }
 
 impl Not for CNF {
     type Output = Self;
-
-    fn not(self) -> Self {
+    fn not(self) -> Self::Output {
         todo!()
     }
 }
