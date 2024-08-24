@@ -134,7 +134,8 @@ impl BitOr<Clause> for Literal {
                 literals.insert(self);
                 Clause::Valid { literals }
             }
-            Clause::Conflicted => Clause::Conflicted,
+            // ⊥ ∨ x = x
+            Clause::Conflicted => self.into(),
         }
     }
 }
@@ -193,6 +194,19 @@ impl Clause {
     pub fn from_literals(literals: &[Literal]) -> Self {
         Self::Valid {
             literals: literals.iter().cloned().collect(),
+        }
+    }
+
+    pub fn supp(&self) -> BTreeSet<NonZeroU32> {
+        match self {
+            Self::Valid { literals } => literals.iter().map(|lit| lit.id).collect(),
+            Self::Conflicted => BTreeSet::new(),
+        }
+    }
+
+    pub fn always_true() -> Self {
+        Self::Valid {
+            literals: BTreeSet::new(),
         }
     }
 
@@ -270,7 +284,8 @@ impl BitOr for Clause {
                 literals.append(&mut rhs);
                 Clause::Valid { literals }
             }
-            _ => Clause::Conflicted,
+            // ⊥ ∨ x = x ∨ ⊥ = x
+            (Clause::Conflicted, out) | (out, Clause::Conflicted) => out,
         }
     }
 }
@@ -284,6 +299,22 @@ impl BitOr<Literal> for Clause {
                 Clause::Valid { literals }
             }
             Clause::Conflicted => Clause::Conflicted,
+        }
+    }
+}
+
+impl Not for Clause {
+    type Output = CNF;
+    fn not(self) -> Self::Output {
+        match self {
+            Clause::Valid { literals } => {
+                let mut inner = Vec::new();
+                for lit in literals {
+                    inner.push(Clause::from(lit));
+                }
+                CNF::Valid(inner)
+            }
+            Clause::Conflicted => CNF::always_true(),
         }
     }
 }
@@ -361,6 +392,17 @@ impl CNF {
         let lit = Literal::new(id);
         let clause = Clause::from(lit);
         Self::Valid(vec![clause])
+    }
+
+    pub fn always_true() -> Self {
+        Self::Valid(Vec::new())
+    }
+
+    pub fn supp(&self) -> BTreeSet<NonZeroU32> {
+        match self {
+            Self::Valid(clauses) => clauses.iter().flat_map(Clause::supp).collect(),
+            Self::Conflicted => BTreeSet::new(),
+        }
     }
 
     pub fn is_solved(&self) -> Option<Solution> {
@@ -526,6 +568,15 @@ impl BitOr for CNF {
 impl Not for CNF {
     type Output = Self;
     fn not(self) -> Self::Output {
-        todo!()
+        match self {
+            CNF::Valid(clauses) => {
+                let mut out = CNF::always_true();
+                for clause in clauses {
+                    out = out | !clause;
+                }
+                out
+            }
+            CNF::Conflicted => CNF::Valid(Vec::new()),
+        }
     }
 }
