@@ -258,6 +258,9 @@ impl fmt::Display for Clause {
         match self {
             Self::Conflicted => write!(f, "⊥"),
             Self::Valid { literals } => {
+                if literals.is_empty() {
+                    return write!(f, "⊤");
+                }
                 for (i, literal) in literals.iter().enumerate() {
                     if i > 0 {
                         write!(f, " ∨ ")?;
@@ -324,25 +327,25 @@ impl Not for Clause {
 /// ```rust
 /// use cdcl::CNF;
 ///
-/// // (x0 ∧ x1) ∨ x2 = (x0 ∨ x2) ∧ (x1 ∨ x2)
-/// let expr = (CNF::lit(0) & CNF::lit(1)) | CNF::lit(2);
-/// assert_eq!(expr.to_string(), "(x0 ∨ x2) ∧ (x1 ∨ x2)");
+/// // (x1 ∧ x2) ∨ x3 = (x1 ∨ x3) ∧ (x2 ∨ x3)
+/// let expr = (CNF::lit(1) & CNF::lit(2)) | CNF::lit(3);
+/// assert_eq!(expr.to_string(), "(x1 ∨ x3) ∧ (x2 ∨ x3)");
 ///
-/// // x0 ∨ (x1 ∧ x2) = (x0 ∨ x1) ∧ (x0 ∨ x2)
-/// let expr = CNF::lit(0) | (CNF::lit(1) & CNF::lit(2));
-/// assert_eq!(expr.to_string(), "(x0 ∨ x1) ∧ (x0 ∨ x2)");
+/// // x1 ∨ (x2 ∧ x3) = (x1 ∨ x2) ∧ (x1 ∨ x3)
+/// let expr = CNF::lit(1) | (CNF::lit(2) & CNF::lit(3));
+/// assert_eq!(expr.to_string(), "(x1 ∨ x2) ∧ (x1 ∨ x3)");
 ///
-/// // (x0 ∧ x1) ∨ (x2 ∧ x3) = (x0 ∨ x2) ∧ (x0 ∨ x3) ∧ (x1 ∨ x2) ∧ (x1 ∨ x3)
-/// let expr = (CNF::lit(0) & CNF::lit(1)) | (CNF::lit(2) & CNF::lit(3));
-/// assert_eq!(expr.to_string(), "(x0 ∨ x2) ∧ (x0 ∨ x3) ∧ (x1 ∨ x2) ∧ (x1 ∨ x3)");
+/// // (x1 ∧ x2) ∨ (x3 ∧ x4) = (x1 ∨ x3) ∧ (x1 ∨ x4) ∧ (x2 ∨ x3) ∧ (x2 ∨ x4)
+/// let expr = (CNF::lit(1) & CNF::lit(2)) | (CNF::lit(3) & CNF::lit(4));
+/// assert_eq!(expr.to_string(), "(x1 ∨ x3) ∧ (x1 ∨ x4) ∧ (x2 ∨ x3) ∧ (x2 ∨ x4)");
 ///
-/// // ¬(x0 ∧ x1) = ¬x0 ∨ ¬x1
-/// let expr = !(CNF::lit(0) & CNF::lit(1));
-/// assert_eq!(expr.to_string(), "¬x0 ∨ ¬x1");
+/// // ¬(x1 ∧ x2) = ¬x1 ∨ ¬x2
+/// let expr = !(CNF::lit(1) & CNF::lit(2));
+/// assert_eq!(expr.to_string(), "¬x1 ∨ ¬x2");
 ///
-/// // ¬(x0 ∨ x1) ∧ x2 = ¬x0 ∧ ¬x1 ∧ x2
-/// let expr = !(CNF::lit(0) | CNF::lit(1)) & CNF::lit(2);
-/// assert_eq!(expr.to_string(), "¬x0 ∧ ¬x1 ∧ x2");
+/// // ¬(x1 ∨ x2) ∧ x3 = ¬x1 ∧ ¬x2 ∧ x3
+/// let expr = !(CNF::lit(1) | CNF::lit(2)) & CNF::lit(3);
+/// assert_eq!(expr.to_string(), "¬x1 ∧ ¬x2 ∧ x3");
 /// ```
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub enum CNF {
@@ -353,7 +356,7 @@ pub enum CNF {
 impl From<bool> for CNF {
     fn from(value: bool) -> Self {
         if value {
-            CNF::Valid(Vec::new())
+            CNF::always_true()
         } else {
             CNF::Conflicted
         }
@@ -444,27 +447,25 @@ impl CNF {
     /// Clauses in AND expression
     ///
     /// ```rust
-    /// use cdcl::{CNF, Expr};
+    /// use cdcl::{CNF, Literal};
     ///
-    /// // (x0 ∧ x1) ∨ x2 = (x0 ∨ x2) ∧ (x1 ∨ x2)
-    /// let expr = (CNF::lit(0) & CNF::lit(1)) | CNF::lit(2);
-    /// let clauses = expr.clauses().cloned().collect::<Vec<Expr>>();
-    /// assert_eq!(
-    ///     clauses,
-    ///     vec![
-    ///         Expr::variable(0) | Expr::variable(2), // x0 ∨ x2
-    ///         Expr::variable(1) | Expr::variable(2)  // x1 ∨ x2
-    ///     ]
-    /// );
+    /// // (x1 ∧ x2) ∨ x3 = (x1 ∨ x3) ∧ (x2 ∨ x3)
+    /// let expr = (CNF::lit(1) & CNF::lit(2)) | CNF::lit(3);
+    /// let clauses = expr.clauses().unwrap();
+    /// assert_eq!(clauses.len(), 2);
+    /// assert_eq!(clauses[0], Literal::new(1) | Literal::new(3)); // x1 ∨ x3
+    /// assert_eq!(clauses[1], Literal::new(2) | Literal::new(3)); // x2 ∨ x3
     ///
     /// // Non-AND expression is a single clause
-    /// let expr = CNF::lit(0);
-    /// let clauses = expr.clauses().cloned().collect::<Vec<Expr>>();
-    /// assert_eq!(clauses, vec![Expr::variable(0)]);
+    /// let expr = CNF::lit(1);
+    /// let clauses = expr.clauses().unwrap();
+    /// assert_eq!(clauses.len(), 1);
+    /// assert_eq!(clauses[0], Literal::new(1).into());
     ///
-    /// let expr = CNF::lit(0) | CNF::lit(1);
-    /// let clauses = expr.clauses().cloned().collect::<Vec<Expr>>();
-    /// assert_eq!(clauses, vec![Expr::variable(0) | Expr::variable(1)]);
+    /// let expr = CNF::lit(1) | CNF::lit(2);
+    /// let clauses = expr.clauses().unwrap();
+    /// assert_eq!(clauses.len(), 1);
+    /// assert_eq!(clauses[0], Literal::new(1) | Literal::new(2));
     /// ```
     ///
     pub fn clauses(&self) -> Option<&[Clause]> {
@@ -478,19 +479,17 @@ impl CNF {
     ///
     /// ```rust
     /// use cdcl::{CNF, State, Expr};
-    /// use maplit::btreemap;
+    /// use maplit::btreeset;
     ///
     /// // x0 ∧ x1
     /// let expr = CNF::lit(0) & CNF::lit(1);
-    /// let (state, cnf) = expr.take_unit_clauses();
-    /// assert_eq!(state, btreemap! { 0 => true, 1 => true });
-    /// assert_eq!(cnf, CNF::from(true));
+    /// let state = expr.take_unit_clauses();
+    /// assert_eq!(state, btreeset! { 0.into(), 1.into()});
     ///
     /// // x0 ∧ x1 ∧ (x2 ∨ x3)
     /// let expr = CNF::lit(0) & CNF::lit(1) & (CNF::lit(2) | CNF::lit(3));
-    /// let (state, cnf) = expr.take_unit_clauses();
-    /// assert_eq!(state, btreemap! { 0 => true, 1 => true });
-    /// assert_eq!(cnf, CNF::lit(2) | CNF::lit(3));
+    /// let state = expr.take_unit_clauses();
+    /// assert_eq!(state, btreeset! { 0.into(), 1.into() });
     /// ```
     pub fn take_unit_clauses(&self) -> State {
         match self {
@@ -512,11 +511,14 @@ impl fmt::Debug for CNF {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Self::Valid(clauses) => {
+                if clauses.is_empty() {
+                    return write!(f, "⊤");
+                }
                 for (i, clause) in clauses.iter().enumerate() {
                     if i > 0 {
                         write!(f, " ∧ ")?;
                     }
-                    write!(f, "{:?}", clause)?;
+                    write!(f, "({:?})", clause)?;
                 }
                 Ok(())
             }
