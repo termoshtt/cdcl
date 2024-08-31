@@ -256,6 +256,13 @@ impl Clause {
         }
         // Do nothing if the clause is already conflicted
     }
+
+    /// Get the resolvant of two clauses
+    ///
+    /// <https://en.wikipedia.org/wiki/Resolution_(logic)>
+    pub fn resolusion(&self, _other: &Self) -> Option<Self> {
+        todo!()
+    }
 }
 
 impl From<Literal> for Clause {
