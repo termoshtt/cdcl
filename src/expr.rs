@@ -51,6 +51,13 @@ pub struct Literal {
     pub positive: bool,
 }
 
+#[macro_export]
+macro_rules! lit {
+    ($lit:expr) => {
+        $crate::Literal::new($lit)
+    };
+}
+
 impl Literal {
     /// Similar to DIMACS format, literals are 1-indexed and negative literals are negated
     pub fn new(lit: i32) -> Self {
@@ -376,6 +383,18 @@ impl From<bool> for CNF {
         } else {
             CNF::Conflicted
         }
+    }
+}
+
+impl From<Literal> for CNF {
+    fn from(literal: Literal) -> Self {
+        CNF::from(Clause::from(literal))
+    }
+}
+
+impl From<Clause> for CNF {
+    fn from(clause: Clause) -> Self {
+        Self::Valid(vec![clause])
     }
 }
 

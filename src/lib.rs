@@ -25,6 +25,17 @@ use std::{
 
 pub type State = BTreeSet<Literal>;
 
+#[macro_export]
+macro_rules! state {
+    ($($x:expr),*) => {
+        {
+            let mut s = $crate::State::new();
+            $(s.insert($x.into());)*
+            s
+        }
+    };
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Solution {
     /// Find a satisfying assignment
