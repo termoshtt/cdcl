@@ -1,471 +1,600 @@
-use crate::State;
+use crate::Solution;
+
+use super::State;
+use anyhow::Result;
 use maplit::btreeset;
 use std::{
     collections::BTreeSet,
     fmt,
+    num::NonZeroU32,
     ops::{BitAnd, BitOr, Not},
 };
 
-mod cnf;
-mod dnf;
-
-pub use cnf::CNF;
-pub use dnf::DNF;
-
-/// Expression in Boolean logic.
+/// A literal in [Conjunctive Normal Form](https://en.wikipedia.org/wiki/Conjunctive_normal_form)
 ///
-/// This does not assume that the expression is in conjunctive ([CNF]) or disjunctive normal form ([DNF]).
+/// # Order
 ///
-/// Logical variables is represented by [Expr::Var], and have unique integer IDs.
-/// They are displayed as `x` followed by the ID like `x0`.
+/// - Literals are ordered by their ID
+/// - If the IDs are the same, positive literals are less than negative literals
 ///
 /// ```rust
-/// use cdcl::Expr;
+/// use cdcl::Literal;
 ///
-/// // Create a expression consists of a variable with id 0
-/// let expr = Expr::variable(0);
-/// assert_eq!(expr.to_string(), "x0");
+/// let a = Literal::new(1);
+/// let b = Literal::new(-1);
+/// let c = Literal::new(2);
+/// let d = Literal::new(-2);
+///
+/// assert!(a < b); // x1 < ¬x1
+/// assert!(b < c); // ¬x1 < x2
+/// assert!(c < d); // x2 < ¬x2
 /// ```
 ///
-/// [Expr::True] and [Expr::False] constants
+/// # Operations
+///
+/// `|` operator is overloaded to create a [Clause] from two literals
 ///
 /// ```rust
-/// use cdcl::Expr;
+/// use cdcl::Literal;
 ///
-/// let t = Expr::True;
-/// let f = Expr::False;
+/// let a = Literal::new(1);
+/// let b = Literal::new(-1);
+/// let c = Literal::new(2);
 ///
-/// // Displayed as 1 and 0
-/// assert_eq!(t.to_string(), "1");
-/// assert_eq!(f.to_string(), "0");
-///
-/// // From bool
-/// assert_eq!(Expr::from(true), t);
-/// assert_eq!(Expr::from(false), f);
+/// assert_eq!((a | a).to_string(), "x1"); // deduped
+/// assert_eq!((a | b).to_string(), "x1 ∨ ¬x1");
+/// assert_eq!((a | b | c).to_string(), "x1 ∨ ¬x1 ∨ x2");
 /// ```
-///
-/// [BitAnd] (`&`), [BitOr] (`|`), and [Not] (`!`) operators can be used to construct ∧, ∨, and ¬ operations.
-/// Note that the precedence of `&` is higher than `|`.
-///
-/// ```rust
-/// use cdcl::Expr;
-///
-/// let expr = Expr::variable(0) & Expr::variable(1) | Expr::variable(2);
-/// assert_eq!(expr.to_string(), "x2 ∨ (x0 ∧ x1)");
-///
-/// let expr = Expr::variable(0) | Expr::variable(1) & Expr::variable(2);
-/// assert_eq!(expr.to_string(), "x0 ∨ (x1 ∧ x2)");
-///
-/// let expr = !Expr::variable(0) & Expr::variable(1);
-/// assert_eq!(expr.to_string(), "¬x0 ∧ x1");
-///
-/// // AND and OR expressions are automatically sorted
-/// let expr = Expr::variable(2) & Expr::variable(0) & !Expr::variable(1);
-/// assert_eq!(expr.to_string(), "x0 ∧ ¬x1 ∧ x2");
-/// let expr = Expr::variable(2) | Expr::variable(0) | !Expr::variable(1);
-/// assert_eq!(expr.to_string(), "x0 ∨ ¬x1 ∨ x2");
-/// ```
-///
-/// Different from [CNF] and [DNF], these expressions are kept as created except for following cases:
-///
-/// ```rust
-/// use cdcl::Expr;
-///
-/// // ¬¬x0 = x0
-/// assert_eq!(!!Expr::variable(0), Expr::variable(0));
-///
-/// // x0 ∧ x0 = x0
-/// assert_eq!(Expr::variable(0) & Expr::variable(0), Expr::variable(0));
-/// // x0 ∨ x0 = x0
-/// assert_eq!(Expr::variable(0) | Expr::variable(0), Expr::variable(0));
-///
-/// // x0 ∨ ¬x0 = 1
-/// assert_eq!(Expr::variable(0) | !Expr::variable(0), Expr::True);
-/// assert_eq!(!Expr::variable(0) | Expr::variable(0), Expr::True);
-/// // x0 ∧ ¬x0 = 0
-/// assert_eq!(Expr::variable(0) & !Expr::variable(0), Expr::False);
-/// assert_eq!(!Expr::variable(0) & Expr::variable(0), Expr::False);
-///
-/// // ¬1 = 0
-/// assert_eq!(!Expr::True, Expr::False);
-/// // ¬0 = 1
-/// assert_eq!(!Expr::False, Expr::True);
-///
-/// // 1 ∧ x0 = x0
-/// assert_eq!(Expr::True & Expr::variable(0), Expr::variable(0));
-/// assert_eq!(Expr::variable(0) & Expr::True, Expr::variable(0));
-/// // 0 ∨ x0 = x0
-/// assert_eq!(Expr::False | Expr::variable(0), Expr::variable(0));
-/// assert_eq!(Expr::variable(0) | Expr::False, Expr::variable(0));
-/// // 1 ∨ x0 = 1
-/// assert_eq!(Expr::True | Expr::variable(0), Expr::True);
-/// assert_eq!(Expr::variable(0) | Expr::True, Expr::True);
-/// // 0 ∧ x0 = 0
-/// assert_eq!(Expr::False & Expr::variable(0), Expr::False);
-/// assert_eq!(Expr::variable(0) & Expr::False, Expr::False);
-/// ```
-///
-/// The expressions have ordering as following:
-///
-/// ```rust
-/// use cdcl::Expr;
-///
-/// // Bool literals are smaller than others, and False is smallest
-/// assert!(Expr::False < Expr::True);
-/// assert!(Expr::True < Expr::variable(0));
-/// assert!(Expr::True < Expr::variable(0) & Expr::variable(1));
-/// assert!(Expr::True < Expr::variable(0) | Expr::variable(1));
-/// assert!(Expr::True < !Expr::variable(0));
-///
-/// // Smaller variable ID is smaller
-/// assert!(Expr::variable(0) < Expr::variable(1));
-///
-/// // NOT of any expression is next to the expression
-/// assert!(Expr::variable(0) < !Expr::variable(0));
-/// assert!(!Expr::variable(0) < Expr::variable(1));
-///
-/// // AND is smaller than OR
-/// assert!(Expr::variable(0) & Expr::variable(1) < Expr::variable(0) | Expr::variable(1));
-///
-/// // AND and OR expressions have graded lexical ordering
-/// // lexical order for same rank AND
-/// assert!(Expr::variable(0) & Expr::variable(1) < Expr::variable(0) & Expr::variable(2));
-/// // rank-2 AND is smaller than rank-3 AND
-/// assert!(Expr::variable(1) & Expr::variable(2) < Expr::variable(0) & Expr::variable(1) & Expr::variable(2));
-/// ```
-///
-#[derive(Clone, PartialEq, Eq, Hash)]
-pub enum Expr {
-    /// Conjunction of expressions. Since `AND` is commutative, the expressions are sorted.
-    And(BTreeSet<Expr>),
-    Or(BTreeSet<Expr>),
-    Not(Box<Expr>),
-
-    /// Propositional variable.
-    Var {
-        /// Unique identifier for the variable.
-        id: usize,
-    },
-    /// True constant, displayed as `1`.
-    True,
-    /// False constant, displayed as `0`.
-    False,
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+pub struct Literal {
+    pub id: NonZeroU32,
+    pub positive: bool,
 }
 
-impl Expr {
-    /// Propositional variable.
-    pub fn variable(id: usize) -> Expr {
-        Expr::Var { id }
-    }
-
-    pub fn as_bool(&self) -> Option<bool> {
-        match self {
-            Expr::True => Some(true),
-            Expr::False => Some(false),
-            _ => None,
-        }
-    }
-
-    pub fn as_var(&self) -> Option<usize> {
-        match self {
-            Expr::Var { id } => Some(*id),
-            _ => None,
-        }
-    }
-
-    /// Height of the expression.
-    ///
-    /// ```rust
-    /// use cdcl::Expr;
-    ///
-    /// // Height of a variable and a literal is `1`
-    /// assert_eq!(Expr::True.height(), 1);
-    /// assert_eq!(Expr::variable(0).height(), 1);
-    ///
-    /// // Height of a NOT expression is `2`
-    /// assert_eq!((!Expr::variable(0)).height(), 2);
-    ///
-    /// // Since the AND and OR expressions are flatten, their height is the maximum height of the children plus 1
-    /// assert_eq!((Expr::variable(0) & Expr::variable(1)).height(), 2);
-    /// assert_eq!((Expr::variable(0) & Expr::variable(1) & Expr::variable(2)).height(), 2);
-    /// assert_eq!((Expr::variable(0) | Expr::variable(1)).height(), 2);
-    /// assert_eq!((Expr::variable(0) | Expr::variable(1) | Expr::variable(2)).height(), 2);
-    ///
-    /// // Height of a nested expression
-    /// assert_eq!((Expr::variable(0) & (Expr::variable(1) | Expr::variable(2))).height(), 3);
-    /// assert_eq!((Expr::variable(0) & (Expr::variable(1) | !Expr::variable(2))).height(), 4);
-    /// ```
-    ///
-    pub fn height(&self) -> usize {
-        match self {
-            Expr::And(inner) | Expr::Or(inner) => {
-                inner.iter().map(|e| e.height()).max().unwrap_or(0) + 1
+impl Literal {
+    /// Similar to DIMACS format, literals are 1-indexed and negative literals are negated
+    pub fn new(lit: i32) -> Self {
+        assert!(lit != 0, "0 is not allowed for ID");
+        if lit > 0 {
+            Self {
+                id: NonZeroU32::new(lit as u32).unwrap(),
+                positive: true,
             }
-            Expr::Not(e) => e.height() + 1,
-            _ => 1,
-        }
-    }
-
-    pub fn substitute(&self, id: usize, value: bool) -> Expr {
-        match self {
-            Expr::Var { id: var_id } if *var_id == id => value.into(),
-            Expr::Var { .. } => self.clone(),
-            Expr::Not(e) => !e.substitute(id, value),
-            Expr::And(inner) => inner
-                .iter()
-                .map(|e| e.substitute(id, value))
-                .fold(Expr::True, |acc, e| acc & e),
-            Expr::Or(inner) => inner
-                .iter()
-                .map(|e| e.substitute(id, value))
-                .fold(Expr::False, |acc, e| acc | e),
-            _ => self.clone(),
-        }
-    }
-
-    pub fn evaluate(&self, state: &State) -> Expr {
-        match self {
-            Expr::Var { id } => state.contains_key(id).into(),
-            Expr::Not(e) => !e.evaluate(state),
-            Expr::And(inner) => inner
-                .iter()
-                .fold(Expr::True, |acc, e| acc & e.evaluate(state)),
-            Expr::Or(inner) => inner
-                .iter()
-                .fold(Expr::False, |acc, e| acc | e.evaluate(state)),
-            _ => self.clone(),
-        }
-    }
-
-    /// IDs of using variables in the expression.
-    pub fn variables(&self) -> BTreeSet<usize> {
-        match self {
-            Expr::Var { id } => btreeset![*id],
-            Expr::Not(e) => e.variables(),
-            Expr::And(inner) | Expr::Or(inner) => {
-                inner.iter().flat_map(|e| e.variables()).collect()
-            }
-            _ => Default::default(),
-        }
-    }
-
-    /// Returns the conjunctive normal form of the expression.
-    pub fn cnf(self) -> Expr {
-        todo!()
-    }
-}
-
-impl From<usize> for Expr {
-    fn from(id: usize) -> Self {
-        Expr::variable(id)
-    }
-}
-
-impl From<bool> for Expr {
-    fn from(b: bool) -> Self {
-        if b {
-            Expr::True
         } else {
-            Expr::False
+            Self {
+                id: NonZeroU32::new((-lit) as u32).unwrap(),
+                positive: false,
+            }
         }
     }
 }
 
-impl PartialOrd for Expr {
+impl From<i32> for Literal {
+    fn from(id: i32) -> Self {
+        Self::new(id)
+    }
+}
+
+impl Not for Literal {
+    type Output = Self;
+
+    fn not(self) -> Self::Output {
+        Self::Output {
+            positive: !self.positive,
+            ..self
+        }
+    }
+}
+
+impl PartialOrd for Literal {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl Ord for Expr {
+impl Ord for Literal {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        use std::cmp::Ordering;
-        match (self, other) {
-            // Bool literals are smaller than others, and False is smallest
-            (Expr::False, Expr::False) | (Expr::True, Expr::True) => Ordering::Equal,
-            (Expr::False, _) => Ordering::Less,
-            (_, Expr::False) => Ordering::Greater,
-            (Expr::True, _) => Ordering::Less,
-            (_, Expr::True) => Ordering::Greater,
-
-            // NOT of any expression is next to the expression
-            (Expr::Not(a), Expr::Not(b)) => a.cmp(b),
-            (Expr::Not(a), b) if a.as_ref() == b => Ordering::Greater,
-            (Expr::Not(a), b) => a.as_ref().cmp(b),
-            (a, Expr::Not(b)) if a == b.as_ref() => Ordering::Less,
-            (a, Expr::Not(b)) => a.cmp(b),
-
-            (Expr::Var { id: a }, Expr::Var { id: b }) => a.cmp(b),
-            (Expr::Var { .. }, _) => Ordering::Less,
-            (_, Expr::Var { .. }) => Ordering::Greater,
-
-            (Expr::And(lhs), Expr::And(rhs)) if lhs.len() != rhs.len() => lhs.len().cmp(&rhs.len()),
-            (Expr::And(lhs), Expr::And(rhs)) => lhs.cmp(rhs),
-            (Expr::And(_), _) => Ordering::Less,
-            (_, Expr::And(_)) => Ordering::Greater,
-
-            (Expr::Or(lhs), Expr::Or(rhs)) if lhs.len() != rhs.len() => lhs.len().cmp(&rhs.len()),
-            (Expr::Or(lhs), Expr::Or(rhs)) => lhs.cmp(rhs),
+        match self.id.cmp(&other.id) {
+            std::cmp::Ordering::Equal => self.positive.cmp(&other.positive).reverse(),
+            ordering => ordering,
         }
     }
 }
 
-fn has_prop_and_its_neg(exprs: &BTreeSet<Expr>) -> bool {
-    if exprs.len() < 2 {
-        return false;
-    }
-    let mut iter = exprs.iter();
-    // NOT of any expression is next to the expression
-    let mut last = iter.next().unwrap();
-    for current in iter {
-        match current {
-            Expr::Not(c) if c.as_ref() == last => return true,
-            _ => {}
-        }
-        last = current;
-    }
-    false
-}
-
-impl BitAnd for Expr {
-    type Output = Expr;
-    fn bitand(self, rhs: Self) -> Self::Output {
-        match (self, rhs) {
-            (Expr::False, _) | (_, Expr::False) => Expr::False,
-            (Expr::True, x) | (x, Expr::True) => x,
-            (x, Expr::Not(y)) | (Expr::Not(y), x) if x == *y => Expr::False,
-            (lhs, rhs) if lhs == rhs => lhs,
-            (Expr::And(mut lhs), Expr::And(mut rhs)) => {
-                lhs.append(&mut rhs);
-                if has_prop_and_its_neg(&lhs) {
-                    return Expr::False;
-                }
-                Expr::And(lhs)
-            }
-            (Expr::And(mut a), b) | (b, Expr::And(mut a)) => {
-                a.insert(b);
-                if has_prop_and_its_neg(&a) {
-                    return Expr::False;
-                }
-                Expr::And(a)
-            }
-            (lhs, rhs) => Expr::And(btreeset! {lhs, rhs}),
+impl fmt::Display for Literal {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        if self.positive {
+            write!(f, "x{}", self.id)
+        } else {
+            write!(f, "¬x{}", self.id)
         }
     }
 }
 
-impl BitOr for Expr {
-    type Output = Expr;
+impl fmt::Debug for Literal {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self)
+    }
+}
+
+impl BitOr for Literal {
+    type Output = Clause;
     fn bitor(self, rhs: Self) -> Self::Output {
-        match (self, rhs) {
-            (Expr::True, _) | (_, Expr::True) => Expr::True,
-            (Expr::False, x) | (x, Expr::False) => x,
-            (x, Expr::Not(y)) | (Expr::Not(y), x) if x == *y => Expr::True,
-            (lhs, rhs) if lhs == rhs => lhs,
-            (Expr::Or(mut lhs), Expr::Or(mut rhs)) => {
-                lhs.append(&mut rhs);
-                if has_prop_and_its_neg(&lhs) {
-                    return Expr::True;
-                }
-                Expr::Or(lhs)
-            }
-            (Expr::Or(mut a), b) | (b, Expr::Or(mut a)) => {
-                a.insert(b);
-                if has_prop_and_its_neg(&a) {
-                    return Expr::True;
-                }
-                Expr::Or(a)
-            }
-            (lhs, rhs) => Expr::Or(btreeset! { lhs, rhs }),
+        Clause::Valid {
+            literals: btreeset! {self, rhs},
         }
     }
 }
 
-impl Not for Expr {
-    type Output = Expr;
-    fn not(self) -> Self::Output {
-        // Double negation elimination
-        match self {
-            Expr::Not(e) => *e,
-            Expr::True => Expr::False,
-            Expr::False => Expr::True,
-            _ => Expr::Not(Box::new(self)),
+impl BitOr<Clause> for Literal {
+    type Output = Clause;
+    fn bitor(self, rhs: Clause) -> Self::Output {
+        match rhs {
+            Clause::Valid { mut literals } => {
+                literals.insert(self);
+                Clause::Valid { literals }
+            }
+            // ⊥ ∨ x = x
+            Clause::Conflicted => self.into(),
         }
     }
 }
 
-impl fmt::Debug for Expr {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        fmt::Display::fmt(self, f)
+/// A clause in [Conjunctive Normal Form](https://en.wikipedia.org/wiki/Conjunctive_normal_form)
+///
+/// # Order
+///
+/// - `Clause::Conflicted` is always less than any other clauses
+/// - Other clauses are in graded lexical order, i.e. the number of literals is the primary key.
+///
+/// ```rust
+/// use cdcl::Clause;
+///
+/// let a = Clause::from_literals(&[1.into(), 2.into()]);
+/// let b = Clause::from_literals(&[1.into()]);
+/// let c = Clause::from_literals(&[2.into()]);
+/// let d = Clause::from_literals(&[]);
+/// let e = Clause::Conflicted;
+///
+/// assert!(e < d);
+/// assert!(d < b);
+/// assert!(b < c); // since 1 < 2
+/// assert!(c < a);
+/// ```
+///
+#[derive(Clone, PartialEq, Eq, Hash)]
+pub enum Clause {
+    Valid { literals: BTreeSet<Literal> },
+    Conflicted,
+}
+
+impl PartialOrd for Clause {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
     }
 }
 
-impl fmt::Display for Expr {
+impl Ord for Clause {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        match (self, other) {
+            (Self::Valid { literals: a }, Self::Valid { literals: b }) => {
+                match a.len().cmp(&b.len()) {
+                    std::cmp::Ordering::Equal => a.cmp(b),
+                    ordering => ordering,
+                }
+            }
+            (Self::Conflicted, Self::Conflicted) => std::cmp::Ordering::Equal,
+            (Self::Conflicted, Self::Valid { .. }) => std::cmp::Ordering::Less,
+            (Self::Valid { .. }, Self::Conflicted) => std::cmp::Ordering::Greater,
+        }
+    }
+}
+
+impl Clause {
+    pub fn from_literals(literals: &[Literal]) -> Self {
+        Self::Valid {
+            literals: literals.iter().cloned().collect(),
+        }
+    }
+
+    pub fn supp(&self) -> BTreeSet<NonZeroU32> {
+        match self {
+            Self::Valid { literals } => literals.iter().map(|lit| lit.id).collect(),
+            Self::Conflicted => BTreeSet::new(),
+        }
+    }
+
+    pub fn always_true() -> Self {
+        Self::Valid {
+            literals: BTreeSet::new(),
+        }
+    }
+
+    pub fn as_unit(&self) -> Option<Literal> {
+        match self {
+            Self::Valid { literals } => {
+                if literals.len() == 1 {
+                    literals.iter().next().copied()
+                } else {
+                    None
+                }
+            }
+            Self::Conflicted => None,
+        }
+    }
+
+    pub fn substitute(&mut self, lit: Literal) {
+        if let Self::Valid { literals } = self {
+            // Remove the literal itself
+            literals.take(&lit);
+
+            // If the clause contains the negation of the literal, it means the clause is conflicted
+            if literals.take(&!lit).is_some() {
+                *self = Self::Conflicted;
+            };
+        }
+        // Do nothing if the clause is already conflicted
+    }
+}
+
+impl From<Literal> for Clause {
+    fn from(literal: Literal) -> Self {
+        Self::Valid {
+            literals: btreeset! {literal},
+        }
+    }
+}
+
+impl From<Vec<i32>> for Clause {
+    fn from(literals: Vec<i32>) -> Self {
+        Self::Valid {
+            literals: literals.into_iter().map(Literal::new).collect(),
+        }
+    }
+}
+
+impl fmt::Display for Clause {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Expr::And(inner) => {
-                for (i, e) in inner.iter().enumerate() {
-                    if i != 0 {
-                        write!(f, " ∧ ")?;
-                    }
-                    match e {
-                        Expr::Or(_) => write!(f, "({})", e)?,
-                        _ => write!(f, "{}", e)?,
-                    }
+            Self::Conflicted => write!(f, "⊥"),
+            Self::Valid { literals } => {
+                if literals.is_empty() {
+                    return write!(f, "⊤");
                 }
-                Ok(())
-            }
-            Expr::Or(inner) => {
-                for (i, e) in inner.iter().enumerate() {
-                    if i != 0 {
+                for (i, literal) in literals.iter().enumerate() {
+                    if i > 0 {
                         write!(f, " ∨ ")?;
                     }
-                    match e {
-                        Expr::And(_) => write!(f, "({})", e)?,
-                        _ => write!(f, "{}", e)?,
-                    }
+                    write!(f, "{}", literal)?;
                 }
                 Ok(())
             }
-            Expr::Not(e) => write!(f, "¬{}", e),
-            Expr::Var { id } => write!(f, "x{}", id),
-            Expr::True => write!(f, "1"),
-            Expr::False => write!(f, "0"),
         }
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+impl fmt::Debug for Clause {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self)
+    }
+}
 
-    #[test]
-    fn dedup() {
-        // x0 ∧ x1 ∧ x0 = x0 ∧ x1
-        assert_eq!(
-            Expr::variable(0) & Expr::variable(1) & Expr::variable(0),
-            Expr::variable(0) & Expr::variable(1),
-        );
+impl BitOr for Clause {
+    type Output = Self;
+    fn bitor(self, rhs: Self) -> Self {
+        match (self, rhs) {
+            (Clause::Valid { mut literals }, Clause::Valid { literals: mut rhs }) => {
+                literals.append(&mut rhs);
+                Clause::Valid { literals }
+            }
+            // ⊥ ∨ x = x ∨ ⊥ = x
+            (Clause::Conflicted, out) | (out, Clause::Conflicted) => out,
+        }
+    }
+}
 
-        // x0 ∨ x1 ∨ x0 = x0 ∨ x1
-        assert_eq!(
-            Expr::variable(0) | Expr::variable(1) | Expr::variable(0),
-            Expr::variable(0) | Expr::variable(1),
-        );
+impl BitOr<Literal> for Clause {
+    type Output = Self;
+    fn bitor(self, rhs: Literal) -> Self {
+        match self {
+            Clause::Valid { mut literals } => {
+                literals.insert(rhs);
+                Clause::Valid { literals }
+            }
+            Clause::Conflicted => Clause::Conflicted,
+        }
+    }
+}
+
+impl Not for Clause {
+    type Output = CNF;
+    fn not(self) -> Self::Output {
+        match self {
+            Clause::Valid { literals } => {
+                let mut inner = Vec::new();
+                for lit in literals {
+                    inner.push(Clause::from(!lit));
+                }
+                CNF::Valid(inner)
+            }
+            Clause::Conflicted => CNF::always_true(),
+        }
+    }
+}
+
+/// An [Expr] in [Conjunctive Normal Form](https://en.wikipedia.org/wiki/Conjunctive_normal_form)
+///
+/// ```rust
+/// use cdcl::CNF;
+///
+/// // (x1 ∧ x2) ∨ x3 = (x1 ∨ x3) ∧ (x2 ∨ x3)
+/// let expr = (CNF::lit(1) & CNF::lit(2)) | CNF::lit(3);
+/// assert_eq!(expr.to_string(), "(x1 ∨ x3) ∧ (x2 ∨ x3)");
+///
+/// // x1 ∨ (x2 ∧ x3) = (x1 ∨ x2) ∧ (x1 ∨ x3)
+/// let expr = CNF::lit(1) | (CNF::lit(2) & CNF::lit(3));
+/// assert_eq!(expr.to_string(), "(x1 ∨ x2) ∧ (x1 ∨ x3)");
+///
+/// // (x1 ∧ x2) ∨ (x3 ∧ x4) = (x1 ∨ x3) ∧ (x1 ∨ x4) ∧ (x2 ∨ x3) ∧ (x2 ∨ x4)
+/// let expr = (CNF::lit(1) & CNF::lit(2)) | (CNF::lit(3) & CNF::lit(4));
+/// assert_eq!(expr.to_string(), "(x1 ∨ x3) ∧ (x1 ∨ x4) ∧ (x2 ∨ x3) ∧ (x2 ∨ x4)");
+///
+/// // ¬(x1 ∧ x2) = ¬x1 ∨ ¬x2
+/// let expr = !(CNF::lit(1) & CNF::lit(2));
+/// assert_eq!(expr.to_string(), "(¬x1 ∨ ¬x2)");
+///
+/// // ¬(x1 ∨ x2) ∧ x3 = ¬x1 ∧ ¬x2 ∧ x3
+/// let expr = !(CNF::lit(1) | CNF::lit(2)) & CNF::lit(3);
+/// assert_eq!(expr.to_string(), "(¬x1) ∧ (¬x2) ∧ (x3)");
+/// ```
+#[derive(Clone, PartialEq, Eq, Hash)]
+pub enum CNF {
+    Valid(Vec<Clause>),
+    Conflicted,
+}
+
+impl From<bool> for CNF {
+    fn from(value: bool) -> Self {
+        if value {
+            CNF::always_true()
+        } else {
+            CNF::Conflicted
+        }
+    }
+}
+
+impl CNF {
+    pub fn from_rgbd(cnf: rgbd::CNF) -> Self {
+        let mut inner: Vec<_> = cnf.clauses.into_iter().map(Clause::from).collect();
+        inner.sort_unstable();
+        inner.dedup();
+        Self::Valid(inner)
     }
 
-    #[test]
-    fn contradiction() {
-        // x0 ∧ x1 ∧ ¬x0 = 0
-        assert_eq!(
-            Expr::variable(0) & Expr::variable(1) & !Expr::variable(0),
-            Expr::False
-        );
+    /// Parse CNF from DIMACS format
+    ///
+    /// ```rust
+    /// use cdcl::CNF;
+    ///
+    /// let expr = CNF::from_dimacs_format(r#"
+    /// p cnf 5 3
+    /// 1 -5 4 0
+    /// -1 5 3 4 0
+    /// -3 -4 0
+    /// "#).unwrap();
+    ///
+    /// // Note the expression are sorted automatically
+    /// assert_eq!(
+    ///     expr.to_string(),
+    ///     "(¬x3 ∨ ¬x4) ∧ (x1 ∨ x4 ∨ ¬x5) ∧ (¬x1 ∨ x3 ∨ x4 ∨ x5)"
+    /// );
+    /// ```
+    pub fn from_dimacs_format(input: &str) -> Result<Self> {
+        let cnf = rgbd::CNF::from_dimacs_format_str(input)?;
+        Ok(Self::from_rgbd(cnf))
+    }
 
-        // x0 ∨ x1 ∨ ¬x0 = 1
-        assert_eq!(
-            Expr::variable(0) & Expr::variable(1) & !Expr::variable(0),
-            Expr::False
-        );
+    pub fn lit(id: i32) -> Self {
+        let lit = Literal::new(id);
+        let clause = Clause::from(lit);
+        Self::Valid(vec![clause])
+    }
+
+    pub fn always_true() -> Self {
+        Self::Valid(Vec::new())
+    }
+
+    pub fn is_true(&self) -> bool {
+        match self {
+            Self::Valid(clauses) => {
+                clauses.is_empty() || (clauses.len() == 1 && clauses[0] == Clause::always_true())
+            }
+            Self::Conflicted => false,
+        }
+    }
+
+    pub fn supp(&self) -> BTreeSet<NonZeroU32> {
+        match self {
+            Self::Valid(clauses) => clauses.iter().flat_map(Clause::supp).collect(),
+            Self::Conflicted => BTreeSet::new(),
+        }
+    }
+
+    pub fn is_solved(&self) -> Option<Solution> {
+        match self {
+            Self::Valid(..) => {
+                if self.is_true() {
+                    Some(Solution::Sat(State::default()))
+                } else {
+                    None
+                }
+            }
+            Self::Conflicted => Some(Solution::UnSat),
+        }
+    }
+
+    pub fn substitute(&mut self, lit: Literal) {
+        if let Self::Valid(clauses) = self {
+            for clause in clauses.iter_mut() {
+                clause.substitute(lit);
+                if clause == &Clause::Conflicted {
+                    *self = Self::Conflicted;
+                    return;
+                }
+            }
+            clauses.sort_unstable();
+            clauses.dedup();
+        }
+        // Do nothing if the CNF is already conflicted
+    }
+
+    pub fn evaluate(&mut self, state: &State) -> bool {
+        for lit in state.iter() {
+            self.substitute(*lit);
+            if self == &Self::Conflicted {
+                return false;
+            }
+        }
+        self.is_solved().is_some()
+    }
+
+    /// Clauses in AND expression
+    ///
+    /// ```rust
+    /// use cdcl::{CNF, Literal};
+    ///
+    /// // (x1 ∧ x2) ∨ x3 = (x1 ∨ x3) ∧ (x2 ∨ x3)
+    /// let expr = (CNF::lit(1) & CNF::lit(2)) | CNF::lit(3);
+    /// let clauses = expr.clauses().unwrap();
+    /// assert_eq!(clauses.len(), 2);
+    /// assert_eq!(clauses[0], Literal::new(1) | Literal::new(3)); // x1 ∨ x3
+    /// assert_eq!(clauses[1], Literal::new(2) | Literal::new(3)); // x2 ∨ x3
+    ///
+    /// // Non-AND expression is a single clause
+    /// let expr = CNF::lit(1);
+    /// let clauses = expr.clauses().unwrap();
+    /// assert_eq!(clauses.len(), 1);
+    /// assert_eq!(clauses[0], Literal::new(1).into());
+    ///
+    /// let expr = CNF::lit(1) | CNF::lit(2);
+    /// let clauses = expr.clauses().unwrap();
+    /// assert_eq!(clauses.len(), 1);
+    /// assert_eq!(clauses[0], Literal::new(1) | Literal::new(2));
+    /// ```
+    ///
+    pub fn clauses(&self) -> Option<&[Clause]> {
+        match self {
+            Self::Valid(clauses) => Some(clauses),
+            Self::Conflicted => None,
+        }
+    }
+
+    /// List up all unit clauses, single variable or its negation, as a [State] with remaining clauses as a new [CNF]
+    ///
+    /// ```rust
+    /// use cdcl::{CNF, State};
+    /// use maplit::btreeset;
+    ///
+    /// // x1 ∧ x2
+    /// let expr = CNF::lit(1) & CNF::lit(2);
+    /// let state = expr.take_unit_clauses();
+    /// assert_eq!(state, btreeset! { 1.into(), 2.into()});
+
+    /// // x1 ∧ x2 ∧ (x3 ∨ x4)
+    /// let expr = CNF::lit(1) & CNF::lit(2) & (CNF::lit(3) | CNF::lit(4));
+    /// let state = expr.take_unit_clauses();
+    /// assert_eq!(state, btreeset! { 1.into(), 2.into() });
+    /// ```
+    pub fn take_unit_clauses(&self) -> State {
+        match self {
+            Self::Valid(clauses) => {
+                let mut state = State::default();
+                for clause in clauses {
+                    if let Some(lit) = clause.as_unit() {
+                        state.insert(lit);
+                    }
+                }
+                state
+            }
+            Self::Conflicted => State::default(),
+        }
+    }
+}
+
+impl fmt::Debug for CNF {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        if self.is_true() {
+            return write!(f, "⊤");
+        }
+        match self {
+            Self::Valid(clauses) => {
+                for (i, clause) in clauses.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, " ∧ ")?;
+                    }
+                    write!(f, "({:?})", clause)?;
+                }
+                Ok(())
+            }
+            Self::Conflicted => write!(f, "⊥"),
+        }
+    }
+}
+
+impl fmt::Display for CNF {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Debug::fmt(self, f)
+    }
+}
+
+impl BitAnd for CNF {
+    type Output = Self;
+    fn bitand(self, rhs: Self) -> Self {
+        match (self, rhs) {
+            (CNF::Valid(mut lhs), CNF::Valid(mut rhs)) => {
+                lhs.append(&mut rhs);
+                lhs.sort_unstable();
+                lhs.dedup();
+                CNF::Valid(lhs)
+            }
+            _ => CNF::Conflicted,
+        }
+    }
+}
+
+impl BitOr for CNF {
+    type Output = Self;
+
+    fn bitor(self, rhs: Self) -> Self {
+        match (self, rhs) {
+            (CNF::Conflicted, other) | (other, CNF::Conflicted) => other,
+            (CNF::Valid(lhs), CNF::Valid(rhs)) => {
+                let mut inner = Vec::new();
+                for c in &lhs {
+                    for d in &rhs {
+                        inner.push(c.clone() | d.clone())
+                    }
+                }
+                inner.sort_unstable();
+                inner.dedup();
+                CNF::Valid(inner)
+            }
+        }
+    }
+}
+
+impl Not for CNF {
+    type Output = Self;
+    fn not(self) -> Self::Output {
+        match self {
+            CNF::Valid(clauses) => {
+                let mut out = CNF::Conflicted;
+                for clause in clauses {
+                    out = out | !clause;
+                }
+                out
+            }
+            CNF::Conflicted => CNF::always_true(),
+        }
     }
 }

@@ -1,4 +1,5 @@
-use crate::{take_minimal_id, CancelToken, Expr, Solution, Solver, State, CNF};
+use crate::{take_minimal_id, CancelToken, Literal, Solution, Solver, CNF};
+use std::num::NonZeroU32;
 
 pub struct BruteForce {}
 
@@ -12,13 +13,13 @@ impl Solver for BruteForce {
     }
 }
 
-pub fn brute_force(input: CNF, selector: fn(&CNF) -> usize, cancel_token: CancelToken) -> Solution {
-    match *input.as_expr() {
-        // Already solved
-        Expr::True => return Solution::Sat(State::default()),
-        // Never feasible
-        Expr::False => return Solution::UnSat,
-        _ => {}
+pub fn brute_force(
+    input: CNF,
+    selector: fn(&CNF) -> NonZeroU32,
+    cancel_token: CancelToken,
+) -> Solution {
+    if let Some(solution) = input.is_solved() {
+        return solution;
     }
 
     if cancel_token.is_canceled() {
@@ -27,10 +28,16 @@ pub fn brute_force(input: CNF, selector: fn(&CNF) -> usize, cancel_token: Cancel
 
     let fix = selector(&input);
     for value in [true, false] {
-        log::trace!("Set x{} = {}", fix, value);
-        match brute_force(input.substitute(fix, value), selector, cancel_token.clone()) {
+        let lit = Literal {
+            id: fix,
+            positive: value,
+        };
+        log::trace!("Decision: {}", lit);
+        let mut new = input.clone();
+        new.substitute(lit);
+        match brute_force(new, selector, cancel_token.clone()) {
             Solution::Sat(mut state) => {
-                state.insert(fix, value);
+                state.insert(lit);
                 return Solution::Sat(state);
             }
             Solution::UnSat => continue,
@@ -57,8 +64,8 @@ mod tests {
         }
 
         // x3 ∨ x4
-        let expr = CNF::variable(3) | CNF::variable(4);
+        let mut expr = CNF::lit(3) | CNF::lit(4);
         let result = brute_force(expr.clone(), take_minimal_id, cancel_token.clone());
-        assert_eq!(expr.evaluate(result.as_sat().unwrap()), Expr::True);
+        assert!(expr.evaluate(result.as_sat().unwrap()));
     }
 }
