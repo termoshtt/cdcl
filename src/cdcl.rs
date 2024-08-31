@@ -1,4 +1,4 @@
-use crate::expr::{Expr, CNF};
+use crate::{expr::CNF, Clause};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
 pub struct DecisionLevel {
@@ -24,7 +24,7 @@ enum ClauseState {
     Undetermined,
 }
 
-pub fn check_clause(trail: &[DecisionLevel], clause: &Expr) -> ClauseState {
+pub fn check_clause(trail: &[DecisionLevel], clause: &Clause) -> ClauseState {
     todo!()
 }
 
