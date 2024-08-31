@@ -148,12 +148,12 @@ impl BitOr<Clause> for Literal {
 /// - Other clauses are in graded lexical order, i.e. the number of literals is the primary key.
 ///
 /// ```rust
-/// use cdcl::Clause;
+/// use cdcl::{clause, Clause};
 ///
-/// let a = Clause::from_literals(&[1.into(), 2.into()]);
-/// let b = Clause::from_literals(&[1.into()]);
-/// let c = Clause::from_literals(&[2.into()]);
-/// let d = Clause::from_literals(&[]);
+/// let a = clause!{ 1, 2 };
+/// let b = clause!{ 1 };
+/// let c = clause!{ 2 };
+/// let d = clause!{};
 /// let e = Clause::Conflicted;
 ///
 /// assert!(e < d);
@@ -166,6 +166,13 @@ impl BitOr<Clause> for Literal {
 pub enum Clause {
     Valid { literals: BTreeSet<Literal> },
     Conflicted,
+}
+
+#[macro_export]
+macro_rules! clause {
+    ($($lit:expr),*) => {
+        Clause::from_literals(&[$($lit.into()),*])
+    };
 }
 
 impl PartialOrd for Clause {
