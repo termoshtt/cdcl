@@ -18,12 +18,12 @@ use std::{
 /// - If the IDs are the same, positive literals are less than negative literals
 ///
 /// ```rust
-/// use cdcl::Literal;
+/// use cdcl::lit;
 ///
-/// let a = Literal::new(1);
-/// let b = Literal::new(-1);
-/// let c = Literal::new(2);
-/// let d = Literal::new(-2);
+/// let a = lit!(1);
+/// let b = lit!(-1);
+/// let c = lit!(2);
+/// let d = lit!(-2);
 ///
 /// assert!(a < b); // x1 < ¬x1
 /// assert!(b < c); // ¬x1 < x2
@@ -35,11 +35,11 @@ use std::{
 /// `|` operator is overloaded to create a [Clause] from two literals
 ///
 /// ```rust
-/// use cdcl::Literal;
+/// use cdcl::lit;
 ///
-/// let a = Literal::new(1);
-/// let b = Literal::new(-1);
-/// let c = Literal::new(2);
+/// let a = lit!(1);
+/// let b = lit!(-1);
+/// let c = lit!(2);
 ///
 /// assert_eq!((a | a).to_string(), "x1"); // deduped
 /// assert_eq!((a | b).to_string(), "x1 ∨ ¬x1");
@@ -90,6 +90,13 @@ impl Not for Literal {
             positive: !self.positive,
             ..self
         }
+    }
+}
+
+impl BitAnd for Literal {
+    type Output = CNF;
+    fn bitand(self, rhs: Self) -> Self::Output {
+        CNF::from(self) & CNF::from(rhs)
     }
 }
 
@@ -157,10 +164,10 @@ impl BitOr<Clause> for Literal {
 /// ```rust
 /// use cdcl::{clause, Clause};
 ///
-/// let a = clause!{ 1, 2 };
-/// let b = clause!{ 1 };
-/// let c = clause!{ 2 };
-/// let d = clause!{};
+/// let a = clause![1, 2];
+/// let b = clause![1];
+/// let c = clause![2];
+/// let d = clause![];
 /// let e = Clause::Conflicted;
 ///
 /// assert!(e < d);
@@ -259,6 +266,15 @@ impl From<Literal> for Clause {
     }
 }
 
+impl PartialEq<Literal> for Clause {
+    fn eq(&self, other: &Literal) -> bool {
+        match self {
+            Self::Valid { literals } => literals.len() == 1 && literals.contains(other),
+            Self::Conflicted => false,
+        }
+    }
+}
+
 impl From<Vec<i32>> for Clause {
     fn from(literals: Vec<i32>) -> Self {
         Self::Valid {
@@ -336,29 +352,29 @@ impl Not for Clause {
     }
 }
 
-/// An [Expr] in [Conjunctive Normal Form](https://en.wikipedia.org/wiki/Conjunctive_normal_form)
+/// An expression in boolean logic of [Conjunctive Normal Form](https://en.wikipedia.org/wiki/Conjunctive_normal_form)
 ///
 /// ```rust
-/// use cdcl::CNF;
+/// use cdcl::lit;
 ///
 /// // (x1 ∧ x2) ∨ x3 = (x1 ∨ x3) ∧ (x2 ∨ x3)
-/// let expr = (CNF::lit(1) & CNF::lit(2)) | CNF::lit(3);
+/// let expr = (lit!(1) & lit!(2)) | lit!(3);
 /// assert_eq!(expr.to_string(), "(x1 ∨ x3) ∧ (x2 ∨ x3)");
 ///
 /// // x1 ∨ (x2 ∧ x3) = (x1 ∨ x2) ∧ (x1 ∨ x3)
-/// let expr = CNF::lit(1) | (CNF::lit(2) & CNF::lit(3));
+/// let expr = lit!(1) | (lit!(2) & lit!(3));
 /// assert_eq!(expr.to_string(), "(x1 ∨ x2) ∧ (x1 ∨ x3)");
 ///
 /// // (x1 ∧ x2) ∨ (x3 ∧ x4) = (x1 ∨ x3) ∧ (x1 ∨ x4) ∧ (x2 ∨ x3) ∧ (x2 ∨ x4)
-/// let expr = (CNF::lit(1) & CNF::lit(2)) | (CNF::lit(3) & CNF::lit(4));
+/// let expr = (lit!(1) & lit!(2)) | (lit!(3) & lit!(4));
 /// assert_eq!(expr.to_string(), "(x1 ∨ x3) ∧ (x1 ∨ x4) ∧ (x2 ∨ x3) ∧ (x2 ∨ x4)");
 ///
 /// // ¬(x1 ∧ x2) = ¬x1 ∨ ¬x2
-/// let expr = !(CNF::lit(1) & CNF::lit(2));
+/// let expr = !(lit!(1) & lit!(2));
 /// assert_eq!(expr.to_string(), "(¬x1 ∨ ¬x2)");
 ///
 /// // ¬(x1 ∨ x2) ∧ x3 = ¬x1 ∧ ¬x2 ∧ x3
-/// let expr = !(CNF::lit(1) | CNF::lit(2)) & CNF::lit(3);
+/// let expr = !(lit!(1) | lit!(2)) & lit!(3);
 /// assert_eq!(expr.to_string(), "(¬x1) ∧ (¬x2) ∧ (x3)");
 /// ```
 #[derive(Clone, PartialEq, Eq, Hash)]
@@ -395,6 +411,24 @@ impl From<Literal> for CNF {
 impl From<Clause> for CNF {
     fn from(clause: Clause) -> Self {
         Self::Valid(vec![clause])
+    }
+}
+
+impl PartialEq<Clause> for CNF {
+    fn eq(&self, other: &Clause) -> bool {
+        match self {
+            Self::Valid(clauses) => clauses.len() == 1 && clauses[0] == *other,
+            Self::Conflicted => &Clause::Conflicted == other,
+        }
+    }
+}
+
+impl PartialEq<Literal> for CNF {
+    fn eq(&self, other: &Literal) -> bool {
+        match self {
+            Self::Valid(clauses) => clauses.len() == 1 && clauses[0] == *other,
+            Self::Conflicted => false,
+        }
     }
 }
 
@@ -496,25 +530,25 @@ impl CNF {
     /// Clauses in AND expression
     ///
     /// ```rust
-    /// use cdcl::{CNF, Literal};
+    /// use cdcl::{CNF, lit};
     ///
     /// // (x1 ∧ x2) ∨ x3 = (x1 ∨ x3) ∧ (x2 ∨ x3)
-    /// let expr = (CNF::lit(1) & CNF::lit(2)) | CNF::lit(3);
+    /// let expr = (lit!(1) & lit!(2)) | lit!(3);
     /// let clauses = expr.clauses().unwrap();
     /// assert_eq!(clauses.len(), 2);
-    /// assert_eq!(clauses[0], Literal::new(1) | Literal::new(3)); // x1 ∨ x3
-    /// assert_eq!(clauses[1], Literal::new(2) | Literal::new(3)); // x2 ∨ x3
+    /// assert_eq!(clauses[0], lit!(1) | lit!(3)); // x1 ∨ x3
+    /// assert_eq!(clauses[1], lit!(2) | lit!(3)); // x2 ∨ x3
     ///
     /// // Non-AND expression is a single clause
-    /// let expr = CNF::lit(1);
+    /// let expr: CNF = lit!(1).into();
     /// let clauses = expr.clauses().unwrap();
     /// assert_eq!(clauses.len(), 1);
-    /// assert_eq!(clauses[0], Literal::new(1).into());
+    /// assert_eq!(clauses[0], lit!(1));
     ///
-    /// let expr = CNF::lit(1) | CNF::lit(2);
+    /// let expr: CNF = (lit!(1) | lit!(2)).into();
     /// let clauses = expr.clauses().unwrap();
     /// assert_eq!(clauses.len(), 1);
-    /// assert_eq!(clauses[0], Literal::new(1) | Literal::new(2));
+    /// assert_eq!(clauses[0], lit!(1) | lit!(2));
     /// ```
     ///
     pub fn clauses(&self) -> Option<&[Clause]> {
@@ -527,18 +561,17 @@ impl CNF {
     /// List up all unit clauses, single variable or its negation, as a [State] with remaining clauses as a new [CNF]
     ///
     /// ```rust
-    /// use cdcl::{CNF, State};
-    /// use maplit::btreeset;
+    /// use cdcl::{CNF, state};
     ///
     /// // x1 ∧ x2
     /// let expr = CNF::lit(1) & CNF::lit(2);
     /// let state = expr.take_unit_clauses();
-    /// assert_eq!(state, btreeset! { 1.into(), 2.into()});
+    /// assert_eq!(state, state![1, 2]);
 
     /// // x1 ∧ x2 ∧ (x3 ∨ x4)
     /// let expr = CNF::lit(1) & CNF::lit(2) & (CNF::lit(3) | CNF::lit(4));
     /// let state = expr.take_unit_clauses();
-    /// assert_eq!(state, btreeset! { 1.into(), 2.into() });
+    /// assert_eq!(state, state![1, 2]);
     /// ```
     pub fn take_unit_clauses(&self) -> State {
         match self {
@@ -631,5 +664,33 @@ impl Not for CNF {
             }
             CNF::Conflicted => CNF::always_true(),
         }
+    }
+}
+
+impl BitOr<Literal> for CNF {
+    type Output = Self;
+    fn bitor(self, rhs: Literal) -> Self {
+        self | CNF::from(rhs)
+    }
+}
+
+impl BitOr<CNF> for Literal {
+    type Output = CNF;
+    fn bitor(self, rhs: CNF) -> CNF {
+        CNF::from(self) | rhs
+    }
+}
+
+impl BitAnd<Literal> for CNF {
+    type Output = Self;
+    fn bitand(self, rhs: Literal) -> Self {
+        self & CNF::from(rhs)
+    }
+}
+
+impl BitAnd<CNF> for Literal {
+    type Output = CNF;
+    fn bitand(self, rhs: CNF) -> CNF {
+        CNF::from(self) & rhs
     }
 }
