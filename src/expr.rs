@@ -360,6 +360,15 @@ pub enum CNF {
     Conflicted,
 }
 
+impl FromIterator<Clause> for CNF {
+    fn from_iter<T: IntoIterator<Item = Clause>>(iter: T) -> Self {
+        let mut inner: Vec<_> = iter.into_iter().collect();
+        inner.sort_unstable();
+        inner.dedup();
+        Self::Valid(inner)
+    }
+}
+
 impl From<bool> for CNF {
     fn from(value: bool) -> Self {
         if value {
