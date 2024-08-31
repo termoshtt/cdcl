@@ -313,7 +313,7 @@ impl Not for Clause {
             Clause::Valid { literals } => {
                 let mut inner = Vec::new();
                 for lit in literals {
-                    inner.push(Clause::from(lit));
+                    inner.push(Clause::from(!lit));
                 }
                 CNF::Valid(inner)
             }
@@ -341,11 +341,11 @@ impl Not for Clause {
 ///
 /// // ¬(x1 ∧ x2) = ¬x1 ∨ ¬x2
 /// let expr = !(CNF::lit(1) & CNF::lit(2));
-/// assert_eq!(expr.to_string(), "¬x1 ∨ ¬x2");
+/// assert_eq!(expr.to_string(), "(¬x1 ∨ ¬x2)");
 ///
 /// // ¬(x1 ∨ x2) ∧ x3 = ¬x1 ∧ ¬x2 ∧ x3
 /// let expr = !(CNF::lit(1) | CNF::lit(2)) & CNF::lit(3);
-/// assert_eq!(expr.to_string(), "¬x1 ∧ ¬x2 ∧ x3");
+/// assert_eq!(expr.to_string(), "(¬x1) ∧ (¬x2) ∧ (x3)");
 /// ```
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub enum CNF {
@@ -484,15 +484,15 @@ impl CNF {
     /// use cdcl::{CNF, State, Expr};
     /// use maplit::btreeset;
     ///
-    /// // x0 ∧ x1
-    /// let expr = CNF::lit(0) & CNF::lit(1);
+    /// // x1 ∧ x2
+    /// let expr = CNF::lit(1) & CNF::lit(2);
     /// let state = expr.take_unit_clauses();
-    /// assert_eq!(state, btreeset! { 0.into(), 1.into()});
-    ///
-    /// // x0 ∧ x1 ∧ (x2 ∨ x3)
-    /// let expr = CNF::lit(0) & CNF::lit(1) & (CNF::lit(2) | CNF::lit(3));
+    /// assert_eq!(state, btreeset! { 1.into(), 2.into()});
+
+    /// // x1 ∧ x2 ∧ (x3 ∨ x4)
+    /// let expr = CNF::lit(1) & CNF::lit(2) & (CNF::lit(3) | CNF::lit(4));
     /// let state = expr.take_unit_clauses();
-    /// assert_eq!(state, btreeset! { 0.into(), 1.into() });
+    /// assert_eq!(state, btreeset! { 1.into(), 2.into() });
     /// ```
     pub fn take_unit_clauses(&self) -> State {
         match self {
@@ -555,18 +555,20 @@ impl BitOr for CNF {
     type Output = Self;
 
     fn bitor(self, rhs: Self) -> Self {
-        let (CNF::Valid(lhs), CNF::Valid(rhs)) = (self, rhs) else {
-            return CNF::Conflicted;
-        };
-        let mut inner = Vec::new();
-        for c in &lhs {
-            for d in &rhs {
-                inner.push(c.clone() | d.clone())
+        match (self, rhs) {
+            (CNF::Conflicted, other) | (other, CNF::Conflicted) => other,
+            (CNF::Valid(lhs), CNF::Valid(rhs)) => {
+                let mut inner = Vec::new();
+                for c in &lhs {
+                    for d in &rhs {
+                        inner.push(c.clone() | d.clone())
+                    }
+                }
+                inner.sort_unstable();
+                inner.dedup();
+                CNF::Valid(inner)
             }
         }
-        inner.sort_unstable();
-        inner.dedup();
-        CNF::Valid(inner)
     }
 }
 
@@ -575,13 +577,13 @@ impl Not for CNF {
     fn not(self) -> Self::Output {
         match self {
             CNF::Valid(clauses) => {
-                let mut out = CNF::always_true();
+                let mut out = CNF::Conflicted;
                 for clause in clauses {
                     out = out | !clause;
                 }
                 out
             }
-            CNF::Conflicted => CNF::Valid(Vec::new()),
+            CNF::Conflicted => CNF::always_true(),
         }
     }
 }
