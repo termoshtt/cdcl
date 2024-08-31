@@ -1,5 +1,4 @@
-use crate::{Solution, State, CNF};
-use maplit::btreeset;
+use crate::{state, Solution, State, CNF};
 
 pub fn single_solution_cases() -> Vec<(CNF, Solution)> {
     vec![
@@ -8,33 +7,21 @@ pub fn single_solution_cases() -> Vec<(CNF, Solution)> {
         // False
         (CNF::from(false), Solution::UnSat),
         // x3
-        (CNF::lit(3), Solution::Sat(btreeset! { 3.into() })),
+        (CNF::lit(3), Solution::Sat(state![3])),
         // ¬x3
-        (!CNF::lit(3), Solution::Sat(btreeset! { (-3).into() })),
+        (!CNF::lit(3), Solution::Sat(state![-3])),
         // x3 ∧ x4
-        (
-            CNF::lit(3) & CNF::lit(4),
-            Solution::Sat(btreeset! { 3.into(), 4.into() }),
-        ),
+        (CNF::lit(3) & CNF::lit(4), Solution::Sat(state![3, 4])),
         // x3 ∧ ¬x4
-        (
-            CNF::lit(3) & !CNF::lit(4),
-            Solution::Sat(btreeset! { 3.into(), (-4).into() }),
-        ),
+        (CNF::lit(3) & !CNF::lit(4), Solution::Sat(state![3, -4])),
         // ¬x3 ∧ x4
-        (
-            !CNF::lit(3) & CNF::lit(4),
-            Solution::Sat(btreeset! { (-3).into(), 4.into() }),
-        ),
+        (!CNF::lit(3) & CNF::lit(4), Solution::Sat(state![-3, 4])),
         // ¬x3 ∧ ¬x4
-        (
-            !CNF::lit(3) & !CNF::lit(4),
-            Solution::Sat(btreeset! { (-3).into(), (-4).into() }),
-        ),
+        (!CNF::lit(3) & !CNF::lit(4), Solution::Sat(state![-3, -4])),
         // x3 ∧ x4 ∧ x5
         (
             CNF::lit(3) & CNF::lit(4) & CNF::lit(5),
-            Solution::Sat(btreeset! { 3.into(), 4.into(), 5.into() }),
+            Solution::Sat(state![3, 4, 5]),
         ),
     ]
 }
