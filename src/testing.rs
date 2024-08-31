@@ -10,7 +10,7 @@ pub fn single_solution_cases() -> Vec<(CNF, Solution)> {
         // x3
         (CNF::lit(3), Solution::Sat(btreeset! { 3.into() })),
         // ¬x3
-        (!CNF::lit(3), Solution::Sat(btreeset! { 3.into() })),
+        (!CNF::lit(3), Solution::Sat(btreeset! { (-3).into() })),
         // x3 ∧ x4
         (
             CNF::lit(3) & CNF::lit(4),
