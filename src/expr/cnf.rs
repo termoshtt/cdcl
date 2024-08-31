@@ -404,6 +404,15 @@ impl CNF {
         Self::Valid(Vec::new())
     }
 
+    pub fn is_true(&self) -> bool {
+        match self {
+            Self::Valid(clauses) => {
+                clauses.is_empty() || (clauses.len() == 1 && clauses[0] == Clause::always_true())
+            }
+            Self::Conflicted => false,
+        }
+    }
+
     pub fn supp(&self) -> BTreeSet<NonZeroU32> {
         match self {
             Self::Valid(clauses) => clauses.iter().flat_map(Clause::supp).collect(),
@@ -413,8 +422,8 @@ impl CNF {
 
     pub fn is_solved(&self) -> Option<Solution> {
         match self {
-            Self::Valid(clauses) => {
-                if clauses.is_empty() {
+            Self::Valid(..) => {
+                if self.is_true() {
                     Some(Solution::Sat(State::default()))
                 } else {
                     None
@@ -426,13 +435,15 @@ impl CNF {
 
     pub fn substitute(&mut self, lit: Literal) {
         if let Self::Valid(clauses) = self {
-            for clause in clauses {
+            for clause in clauses.iter_mut() {
                 clause.substitute(lit);
                 if clause == &Clause::Conflicted {
                     *self = Self::Conflicted;
                     return;
                 }
             }
+            clauses.sort_unstable();
+            clauses.dedup();
         }
         // Do nothing if the CNF is already conflicted
     }
@@ -512,11 +523,11 @@ impl CNF {
 
 impl fmt::Debug for CNF {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        if self.is_true() {
+            return write!(f, "⊤");
+        }
         match self {
             Self::Valid(clauses) => {
-                if clauses.is_empty() {
-                    return write!(f, "⊤");
-                }
                 for (i, clause) in clauses.iter().enumerate() {
                     if i > 0 {
                         write!(f, " ∧ ")?;
