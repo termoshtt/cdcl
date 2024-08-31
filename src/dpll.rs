@@ -35,8 +35,10 @@ pub fn dpll(
         }
     }
 
-    if let Some(solution) = input.is_solved() {
-        return solution;
+    match input.is_solved() {
+        Some(Solution::Sat(..)) => return Solution::Sat(state),
+        Some(Solution::UnSat) => return Solution::UnSat,
+        _ => {}
     }
 
     let fix = selector(&input);
