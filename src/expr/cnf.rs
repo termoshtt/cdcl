@@ -365,7 +365,10 @@ impl From<bool> for CNF {
 
 impl CNF {
     pub fn from_rgbd(cnf: rgbd::CNF) -> Self {
-        Self::Valid(cnf.clauses.into_iter().map(Clause::from).collect())
+        let mut inner: Vec<_> = cnf.clauses.into_iter().map(Clause::from).collect();
+        inner.sort_unstable();
+        inner.dedup();
+        Self::Valid(inner)
     }
 
     /// Parse CNF from DIMACS format
