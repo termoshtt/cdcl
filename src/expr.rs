@@ -492,7 +492,7 @@ impl CNF {
     /// List up all unit clauses, single variable or its negation, as a [State] with remaining clauses as a new [CNF]
     ///
     /// ```rust
-    /// use cdcl::{CNF, State, Expr};
+    /// use cdcl::{CNF, State};
     /// use maplit::btreeset;
     ///
     /// // x1 ∧ x2
