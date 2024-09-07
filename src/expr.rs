@@ -1,7 +1,7 @@
 use crate::Solution;
 
 use super::State;
-use anyhow::Result;
+use anyhow::{bail, Result};
 use maplit::btreeset;
 use std::{
     collections::BTreeSet,
@@ -185,7 +185,7 @@ pub enum Clause {
 #[macro_export]
 macro_rules! clause {
     ($($lit:expr),*) => {
-        Clause::from_literals(&[$($lit.into()),*])
+        $crate::Clause::from_literals(&[$($lit.into()),*])
     };
 }
 
@@ -212,6 +212,28 @@ impl Ord for Clause {
 }
 
 impl Clause {
+    pub fn contains(&self, lit: Literal) -> bool {
+        match self {
+            Self::Valid { literals } => literals.contains(&lit),
+            Self::Conflicted => false,
+        }
+    }
+
+    pub fn remove(&mut self, lit: Literal) -> bool {
+        if let Self::Valid { literals } = self {
+            literals.remove(&lit)
+        } else {
+            false
+        }
+    }
+
+    pub fn is_true(&self) -> bool {
+        match self {
+            Self::Valid { literals } => literals.is_empty(),
+            Self::Conflicted => false,
+        }
+    }
+
     pub fn from_literals(literals: &[Literal]) -> Self {
         Self::Valid {
             literals: literals.iter().cloned().collect(),
@@ -255,6 +277,56 @@ impl Clause {
             };
         }
         // Do nothing if the clause is already conflicted
+    }
+
+    /// Get the resolvant of two clauses
+    ///
+    /// ```rust
+    /// use cdcl::{clause, lit};
+    ///
+    /// let a = clause![1, 2];
+    /// let b = clause![-1, 3];
+    /// assert_eq!(a.resolusion(b).unwrap().to_string(), "x2 ∨ x3");
+    ///
+    /// let a = clause![1, 2];
+    /// let b = clause![-1, 3];
+    /// assert_eq!(b.resolusion(a).unwrap().to_string(), "x2 ∨ x3");
+    ///
+    /// // No pair
+    /// let a = clause![1, 2];
+    /// let b = clause![3, 4];
+    /// assert!(a.resolusion(b).is_err());
+    ///
+    /// // x1 and x1 cannot be a pair
+    /// let a = clause![1, 2];
+    /// let b = clause![1, 3];
+    /// assert!(a.resolusion(b).is_err());
+    ///
+    /// // Multiple pairs
+    /// let a = clause![1, 2];
+    /// let b = clause![-1, -2];
+    /// assert_eq!(a.resolusion(b).unwrap().to_string(), "x2 ∨ ¬x2");  // FIXME: Should be ⊤
+    /// ```
+    ///
+    /// <https://en.wikipedia.org/wiki/Resolution_(logic)>
+    pub fn resolusion(mut self, mut other: Self) -> Result<Self> {
+        let candidates: Vec<NonZeroU32> =
+            self.supp().intersection(&other.supp()).cloned().collect();
+        for id in candidates {
+            let p = Literal { id, positive: true };
+            let n = Literal {
+                id,
+                positive: false,
+            };
+            for (a, b) in [(p, n), (n, p)] {
+                if self.contains(a) && other.contains(b) {
+                    self.remove(a);
+                    other.remove(b);
+                    return Ok(self | other);
+                }
+            }
+        }
+        bail!("No common literals for resolution");
     }
 }
 
@@ -475,9 +547,7 @@ impl CNF {
 
     pub fn is_true(&self) -> bool {
         match self {
-            Self::Valid(clauses) => {
-                clauses.is_empty() || (clauses.len() == 1 && clauses[0] == Clause::always_true())
-            }
+            Self::Valid(clauses) => clauses.iter().all(Clause::is_true),
             Self::Conflicted => false,
         }
     }
