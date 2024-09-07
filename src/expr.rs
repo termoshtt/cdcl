@@ -227,6 +227,13 @@ impl Clause {
         }
     }
 
+    pub fn is_true(&self) -> bool {
+        match self {
+            Self::Valid { literals } => literals.is_empty(),
+            Self::Conflicted => false,
+        }
+    }
+
     pub fn from_literals(literals: &[Literal]) -> Self {
         Self::Valid {
             literals: literals.iter().cloned().collect(),
@@ -294,6 +301,11 @@ impl Clause {
     /// let a = clause![1, 2];
     /// let b = clause![1, 3];
     /// assert!(a.resolusion(b).is_err());
+    ///
+    /// // Multiple pairs
+    /// let a = clause![1, 2];
+    /// let b = clause![-1, -2];
+    /// assert_eq!(a.resolusion(b).unwrap().to_string(), "x2 ∨ ¬x2");  // FIXME: Should be ⊤
     /// ```
     ///
     /// <https://en.wikipedia.org/wiki/Resolution_(logic)>
@@ -535,9 +547,7 @@ impl CNF {
 
     pub fn is_true(&self) -> bool {
         match self {
-            Self::Valid(clauses) => {
-                clauses.is_empty() || (clauses.len() == 1 && clauses[0] == Clause::always_true())
-            }
+            Self::Valid(clauses) => clauses.iter().all(Clause::is_true),
             Self::Conflicted => false,
         }
     }
