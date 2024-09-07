@@ -212,6 +212,21 @@ impl Ord for Clause {
 }
 
 impl Clause {
+    pub fn contains(&self, lit: Literal) -> bool {
+        match self {
+            Self::Valid { literals } => literals.contains(&lit),
+            Self::Conflicted => false,
+        }
+    }
+
+    pub fn remove(&mut self, lit: Literal) -> bool {
+        if let Self::Valid { literals } = self {
+            literals.remove(&lit)
+        } else {
+            false
+        }
+    }
+
     pub fn from_literals(literals: &[Literal]) -> Self {
         Self::Valid {
             literals: literals.iter().cloned().collect(),
@@ -257,13 +272,6 @@ impl Clause {
         // Do nothing if the clause is already conflicted
     }
 
-    pub fn remove_literal(&mut self, id: NonZeroU32) {
-        if let Self::Valid { literals } = self {
-            literals.retain(|lit| lit.id != id);
-        }
-        // Do nothing if the clause is already conflicted
-    }
-
     /// Get the resolvant of two clauses
     ///
     /// ```rust
@@ -272,21 +280,47 @@ impl Clause {
     /// let a = clause![1, 2];
     /// let b = clause![-1, 3];
     /// assert_eq!(a.resolusion(b).unwrap().to_string(), "x2 ∨ x3");
+    ///
+    /// let a = clause![1, 2];
+    /// let b = clause![-1, 3];
+    /// assert_eq!(b.resolusion(a).unwrap().to_string(), "x2 ∨ x3");
+    ///
+    /// // No pair
+    /// let a = clause![1, 2];
+    /// let b = clause![3, 4];
+    /// assert!(a.resolusion(b).is_err());
+    ///
+    /// // x1 and x1 cannot be a pair
+    /// let a = clause![1, 2];
+    /// let b = clause![1, 3];
+    /// assert!(a.resolusion(b).is_err());
     /// ```
     ///
     /// <https://en.wikipedia.org/wiki/Resolution_(logic)>
     pub fn resolusion(mut self, mut other: Self) -> Result<Self> {
-        let common: Vec<NonZeroU32> = self.supp().intersection(&other.supp()).cloned().collect();
-        if common.is_empty() {
-            bail!("No common literals for resolution");
+        let candidates: Vec<NonZeroU32> =
+            self.supp().intersection(&other.supp()).cloned().collect();
+        for id in &candidates {
+            let p = Literal {
+                id: *id,
+                positive: true,
+            };
+            let n = Literal {
+                id: *id,
+                positive: false,
+            };
+            if self.contains(p) && other.contains(n) {
+                self.remove(p);
+                other.remove(n);
+                return Ok(self | other);
+            }
+            if self.contains(n) && other.contains(p) {
+                self.remove(n);
+                other.remove(p);
+                return Ok(self | other);
+            }
         }
-        if common.len() > 1 {
-            bail!("Multiple common literals for resolution");
-        }
-        let common = common[0];
-        self.remove_literal(common);
-        other.remove_literal(common);
-        Ok(self | other)
+        bail!("No common literals for resolution");
     }
 }
 
