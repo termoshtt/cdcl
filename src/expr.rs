@@ -1,7 +1,7 @@
 use crate::Solution;
 
 use super::State;
-use anyhow::Result;
+use anyhow::{bail, Result};
 use maplit::btreeset;
 use std::{
     collections::BTreeSet,
@@ -185,7 +185,7 @@ pub enum Clause {
 #[macro_export]
 macro_rules! clause {
     ($($lit:expr),*) => {
-        Clause::from_literals(&[$($lit.into()),*])
+        $crate::Clause::from_literals(&[$($lit.into()),*])
     };
 }
 
@@ -257,11 +257,36 @@ impl Clause {
         // Do nothing if the clause is already conflicted
     }
 
+    pub fn remove_literal(&mut self, id: NonZeroU32) {
+        if let Self::Valid { literals } = self {
+            literals.retain(|lit| lit.id != id);
+        }
+        // Do nothing if the clause is already conflicted
+    }
+
     /// Get the resolvant of two clauses
     ///
+    /// ```rust
+    /// use cdcl::{clause, lit};
+    ///
+    /// let a = clause![1, 2];
+    /// let b = clause![-1, 3];
+    /// assert_eq!(a.resolusion(b).unwrap().to_string(), "x2 ∨ x3");
+    /// ```
+    ///
     /// <https://en.wikipedia.org/wiki/Resolution_(logic)>
-    pub fn resolusion(&self, _other: &Self) -> Option<Self> {
-        todo!()
+    pub fn resolusion(mut self, mut other: Self) -> Result<Self> {
+        let common: Vec<NonZeroU32> = self.supp().intersection(&other.supp()).cloned().collect();
+        if common.is_empty() {
+            bail!("No common literals for resolution");
+        }
+        if common.len() > 1 {
+            bail!("Multiple common literals for resolution");
+        }
+        let common = common[0];
+        self.remove_literal(common);
+        other.remove_literal(common);
+        Ok(self | other)
     }
 }
 
