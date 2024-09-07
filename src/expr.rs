@@ -300,24 +300,18 @@ impl Clause {
     pub fn resolusion(mut self, mut other: Self) -> Result<Self> {
         let candidates: Vec<NonZeroU32> =
             self.supp().intersection(&other.supp()).cloned().collect();
-        for id in &candidates {
-            let p = Literal {
-                id: *id,
-                positive: true,
-            };
+        for id in candidates {
+            let p = Literal { id, positive: true };
             let n = Literal {
-                id: *id,
+                id,
                 positive: false,
             };
-            if self.contains(p) && other.contains(n) {
-                self.remove(p);
-                other.remove(n);
-                return Ok(self | other);
-            }
-            if self.contains(n) && other.contains(p) {
-                self.remove(n);
-                other.remove(p);
-                return Ok(self | other);
+            for (a, b) in [(p, n), (n, p)] {
+                if self.contains(a) && other.contains(b) {
+                    self.remove(a);
+                    other.remove(b);
+                    return Ok(self | other);
+                }
             }
         }
         bail!("No common literals for resolution");
