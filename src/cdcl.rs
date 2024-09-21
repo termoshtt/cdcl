@@ -1,4 +1,4 @@
-use crate::{selector, Clause, Literal, CNF};
+use crate::{Clause, Literal, CNF};
 use std::collections::BTreeSet;
 use std::num::NonZeroU32;
 
@@ -77,17 +77,23 @@ impl Trail {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct CDCL {
     expr: CNF,
-    selector: fn(&CNF) -> usize,
+    selector: fn(&CNF) -> NonZeroU32,
     trail: Trail,
 }
 
 impl CDCL {
-    pub fn new(expr: CNF, selector: fn(&CNF) -> usize) -> Self {
+    pub fn new(expr: CNF, selector: fn(&CNF) -> NonZeroU32) -> Self {
         Self {
             expr,
             selector,
             trail: Trail::default(),
         }
+    }
+
+    fn make_decision(&mut self) {
+        let id = (self.selector)(&self.expr);
+        let level = DecisionLevel::new(Literal { id, positive: true });
+        self.trail.decision_levels.push(level);
     }
 
     /// Seek every possible implicated literals
@@ -117,5 +123,45 @@ impl CDCL {
             break;
         }
         None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{clause, lit, selector::take_minimal_id};
+
+    #[test]
+    fn unit_propagation() {
+        let expr = clause![-1, 2] & clause![-2, 3] & clause![-3, 4];
+        let mut cdcl = CDCL::new(expr, take_minimal_id);
+
+        // First decision, this must be 1 since it is the smallest id
+        cdcl.make_decision();
+        assert_eq!(cdcl.trail.decision_levels[0].decision, lit!(1));
+
+        let conflicted = cdcl.unit_propagation();
+        assert!(conflicted.is_none());
+
+        assert_eq!(
+            cdcl.trail.decision_levels[0],
+            DecisionLevel {
+                decision: lit!(1),
+                implicated: vec![
+                    Implicated {
+                        literal: lit!(2),
+                        reason: clause![1, 2]
+                    },
+                    Implicated {
+                        literal: lit!(3),
+                        reason: clause![2, 3]
+                    },
+                    Implicated {
+                        literal: lit!(4),
+                        reason: clause![3, 4]
+                    }
+                ],
+            }
+        );
     }
 }

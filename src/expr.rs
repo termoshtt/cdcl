@@ -442,6 +442,13 @@ impl BitOr<Literal> for Clause {
     }
 }
 
+impl BitAnd for Clause {
+    type Output = CNF;
+    fn bitand(self, rhs: Self) -> Self::Output {
+        CNF::from(self) & CNF::from(rhs)
+    }
+}
+
 impl Not for Clause {
     type Output = CNF;
     fn not(self) -> Self::Output {
@@ -792,7 +799,20 @@ impl BitAnd<Literal> for CNF {
     }
 }
 
+impl BitAnd<Clause> for CNF {
+    type Output = Self;
+    fn bitand(self, rhs: Clause) -> Self {
+        self & CNF::from(rhs)
+    }
+}
+
 impl BitAnd<CNF> for Literal {
+    type Output = CNF;
+    fn bitand(self, rhs: CNF) -> CNF {
+        CNF::from(self) & rhs
+    }
+}
+impl BitAnd<CNF> for Clause {
     type Output = CNF;
     fn bitand(self, rhs: CNF) -> CNF {
         CNF::from(self) & rhs
