@@ -212,6 +212,14 @@ impl Ord for Clause {
 }
 
 impl Clause {
+    /// Number of literals in the clause
+    pub fn len(&self) -> usize {
+        match self {
+            Self::Valid { literals } => literals.len(),
+            Self::Conflicted => 0,
+        }
+    }
+
     pub fn contains(&self, lit: Literal) -> bool {
         match self {
             Self::Valid { literals } => literals.contains(&lit),
@@ -235,10 +243,7 @@ impl Clause {
     }
 
     pub fn is_conflicted(&self) -> bool {
-        match self {
-            Self::Conflicted => true,
-            Self::Valid { .. } => false,
-        }
+        matches!(self, Self::Conflicted)
     }
 
     pub fn from_literals(literals: &[Literal]) -> Self {
