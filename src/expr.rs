@@ -234,6 +234,13 @@ impl Clause {
         }
     }
 
+    pub fn is_conflicted(&self) -> bool {
+        match self {
+            Self::Conflicted => true,
+            Self::Valid { .. } => false,
+        }
+    }
+
     pub fn from_literals(literals: &[Literal]) -> Self {
         Self::Valid {
             literals: literals.iter().cloned().collect(),
@@ -280,6 +287,11 @@ impl Clause {
     /// let mut a = clause![1, 2];
     /// a.substitute(lit!(-1));
     /// assert_eq!(a, lit!(2));
+    ///
+    /// // x1 becomes ⊥ when ¬x1 is true
+    /// let mut a = clause![1];
+    /// a.substitute(lit!(-1));
+    /// assert!(a.is_conflicted());
     /// ```
     pub fn substitute(&mut self, lit: Literal) {
         if let Self::Valid { literals } = self {
@@ -288,8 +300,10 @@ impl Clause {
                 literals.clear();
             }
 
-            // If the clause contains the negation of the literal, it is simply removed
-            literals.take(&!lit);
+            // If the clause contains the negation of the literal, it is removed
+            if literals.take(&!lit).is_some() && literals.is_empty() {
+                *self = Self::Conflicted;
+            }
         }
         // Do nothing if the clause is already conflicted
     }
