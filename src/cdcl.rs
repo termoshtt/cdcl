@@ -4,26 +4,40 @@ use std::num::NonZeroU32;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct DecisionLevel {
-    decision: Literal,
+    decision: Option<Literal>,
     implicated: Vec<Implicated>,
 }
 
 impl DecisionLevel {
+    /// Root decision level
+    pub fn root() -> Self {
+        Self {
+            decision: None,
+            implicated: vec![],
+        }
+    }
+
     /// Create a new decision level with new decision
     pub fn new(decision: Literal) -> Self {
         Self {
-            decision,
+            decision: Some(decision),
             implicated: vec![],
         }
     }
 
     /// Number of literals in the decision level
     pub fn len(&self) -> usize {
-        self.implicated.len() + 1
+        self.implicated.len() + self.decision.iter().count()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.decision.is_none() && self.implicated.is_empty()
     }
 
     pub fn literals(&self) -> impl Iterator<Item = &Literal> {
-        std::iter::once(&self.decision).chain(self.implicated.iter().map(|i| &i.literal))
+        self.decision
+            .iter()
+            .chain(self.implicated.iter().map(|i| &i.literal))
     }
 
     pub fn supp(&self) -> BTreeSet<NonZeroU32> {
@@ -37,9 +51,17 @@ struct Implicated {
     reason: Clause,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Trail {
     decision_levels: Vec<DecisionLevel>,
+}
+
+impl Default for Trail {
+    fn default() -> Self {
+        Self {
+            decision_levels: vec![DecisionLevel::root()],
+        }
+    }
 }
 
 impl Trail {
@@ -137,12 +159,13 @@ impl CDCL {
             return solution;
         }
         loop {
+            if let Some(conflict) = self.unit_propagation() {
+                // Backjump
+                dbg!(conflict);
+                todo!()
+            }
             if let Some(solution) = self.make_decision() {
                 return solution;
-            }
-            if let Some(_conflict) = self.unit_propagation() {
-                // Backjump
-                todo!()
             }
         }
     }
@@ -160,15 +183,15 @@ mod tests {
 
         // First decision, this must be 1 since it is the smallest id
         cdcl.make_decision();
-        assert_eq!(cdcl.trail.decision_levels[0].decision, lit!(1));
+        assert_eq!(cdcl.trail.decision_levels[1].decision, Some(lit!(1)));
 
         let conflicted = cdcl.unit_propagation();
         assert!(conflicted.is_none());
 
         assert_eq!(
-            cdcl.trail.decision_levels[0],
+            cdcl.trail.decision_levels[1],
             DecisionLevel {
-                decision: lit!(1),
+                decision: Some(lit!(1)),
                 implicated: vec![
                     Implicated {
                         literal: lit!(2),
@@ -194,7 +217,7 @@ mod tests {
 
         // First decision, this must be 1 since it is the smallest id
         cdcl.make_decision();
-        assert_eq!(cdcl.trail.decision_levels[0].decision, lit!(1));
+        assert_eq!(cdcl.trail.decision_levels[1].decision, Some(lit!(1)));
 
         // Since clauses are scanned in order, [-1, 2] yields the x2 literal,
         // and then [-1, -2] yields a conflict
@@ -205,7 +228,6 @@ mod tests {
     #[test]
     fn solve_single_solution_cases() {
         for (expr, expected) in crate::testing::single_solution_cases() {
-            dbg!(&expr, &expected);
             let mut cdcl = CDCL::new(expr);
             let solution = cdcl.solve();
             assert_eq!(solution, expected);

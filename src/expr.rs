@@ -213,7 +213,7 @@ impl Ord for Clause {
 
 impl Clause {
     /// Number of literals in the clause
-    pub fn len(&self) -> usize {
+    pub fn num_literals(&self) -> usize {
         match self {
             Self::Valid { literals } => literals.len(),
             Self::Conflicted => 0,
