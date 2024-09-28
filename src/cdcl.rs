@@ -1,4 +1,4 @@
-use crate::{Clause, Literal, CNF};
+use crate::{Clause, Literal, Solution, CNF};
 use std::collections::BTreeSet;
 use std::num::NonZeroU32;
 
@@ -77,23 +77,30 @@ impl Trail {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct CDCL {
     expr: CNF,
-    selector: fn(&CNF) -> NonZeroU32,
     trail: Trail,
 }
 
 impl CDCL {
-    pub fn new(expr: CNF, selector: fn(&CNF) -> NonZeroU32) -> Self {
+    pub fn new(expr: CNF) -> Self {
         Self {
             expr,
-            selector,
             trail: Trail::default(),
         }
     }
 
-    fn make_decision(&mut self) {
-        let id = (self.selector)(&self.expr);
-        let level = DecisionLevel::new(Literal { id, positive: true });
-        self.trail.decision_levels.push(level);
+    fn make_decision(&mut self) -> Option<Solution> {
+        let supp = self.expr.supp();
+        let trail_supp = self.trail.supp();
+        let mut remaining = supp.difference(&trail_supp);
+        if let Some(id) = remaining.next() {
+            let level = DecisionLevel::new(Literal {
+                id: *id,
+                positive: true,
+            });
+            self.trail.decision_levels.push(level);
+            return None;
+        }
+        Some(Solution::Sat(self.trail.literals().cloned().collect()))
     }
 
     /// Seek every possible implicated literals
@@ -124,17 +131,32 @@ impl CDCL {
         }
         None
     }
+
+    pub fn solve(&mut self) -> Solution {
+        if let Some(solution) = self.expr.is_solved() {
+            return solution;
+        }
+        loop {
+            if let Some(solution) = self.make_decision() {
+                return solution;
+            }
+            if let Some(_conflict) = self.unit_propagation() {
+                // Backjump
+                todo!()
+            }
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{clause, lit, selector::take_minimal_id};
+    use crate::{clause, lit};
 
     #[test]
     fn unit_propagation() {
         let expr = clause![-1, 2] & clause![-2, 3] & clause![-3, 4];
-        let mut cdcl = CDCL::new(expr, take_minimal_id);
+        let mut cdcl = CDCL::new(expr);
 
         // First decision, this must be 1 since it is the smallest id
         cdcl.make_decision();
@@ -168,7 +190,7 @@ mod tests {
     #[test]
     fn unit_propagation_conflict() {
         let expr = clause![-1, 2] & clause![-1, -2];
-        let mut cdcl = CDCL::new(expr, take_minimal_id);
+        let mut cdcl = CDCL::new(expr);
 
         // First decision, this must be 1 since it is the smallest id
         cdcl.make_decision();
@@ -178,5 +200,15 @@ mod tests {
         // and then [-1, -2] yields a conflict
         let conflicted = cdcl.unit_propagation();
         assert_eq!(conflicted.unwrap(), &clause![-1, -2]);
+    }
+
+    #[test]
+    fn solve_single_solution_cases() {
+        for (expr, expected) in crate::testing::single_solution_cases() {
+            dbg!(&expr, &expected);
+            let mut cdcl = CDCL::new(expr);
+            let solution = cdcl.solve();
+            assert_eq!(solution, expected);
+        }
     }
 }
