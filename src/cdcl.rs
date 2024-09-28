@@ -150,18 +150,33 @@ mod tests {
                 implicated: vec![
                     Implicated {
                         literal: lit!(2),
-                        reason: clause![1, 2]
+                        reason: clause![-1, 2]
                     },
                     Implicated {
                         literal: lit!(3),
-                        reason: clause![2, 3]
+                        reason: clause![-2, 3]
                     },
                     Implicated {
                         literal: lit!(4),
-                        reason: clause![3, 4]
+                        reason: clause![-3, 4]
                     }
                 ],
             }
         );
+    }
+
+    #[test]
+    fn unit_propagation_conflict() {
+        let expr = clause![-1, 2] & clause![-1, -2];
+        let mut cdcl = CDCL::new(expr, take_minimal_id);
+
+        // First decision, this must be 1 since it is the smallest id
+        cdcl.make_decision();
+        assert_eq!(cdcl.trail.decision_levels[0].decision, lit!(1));
+
+        // Since clauses are scanned in order, [-1, 2] yields the x2 literal,
+        // and then [-1, -2] yields a conflict
+        let conflicted = cdcl.unit_propagation();
+        assert_eq!(conflicted.unwrap(), &clause![-1, -2]);
     }
 }
