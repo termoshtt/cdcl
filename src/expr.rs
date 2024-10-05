@@ -212,6 +212,13 @@ impl Ord for Clause {
 }
 
 impl Clause {
+    pub fn literals(&self) -> Option<impl Iterator<Item = &Literal>> {
+        match self {
+            Self::Valid { literals } => Some(literals.iter()),
+            Self::Conflicted => None,
+        }
+    }
+
     /// Number of literals in the clause
     pub fn num_literals(&self) -> usize {
         match self {
@@ -356,7 +363,11 @@ impl Clause {
                 if self.contains(a) && other.contains(b) {
                     self.remove(a);
                     other.remove(b);
-                    return Ok(self | other);
+                    let out = self | other;
+                    if out.num_literals() == 0 {
+                        return Ok(Clause::Conflicted);
+                    }
+                    return Ok(out);
                 }
             }
         }
@@ -781,6 +792,13 @@ impl Not for CNF {
 impl BitOr<Literal> for CNF {
     type Output = Self;
     fn bitor(self, rhs: Literal) -> Self {
+        self | CNF::from(rhs)
+    }
+}
+
+impl BitOr<Clause> for CNF {
+    type Output = Self;
+    fn bitor(self, rhs: Clause) -> Self {
         self | CNF::from(rhs)
     }
 }

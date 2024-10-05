@@ -87,12 +87,33 @@ impl Trail {
             .collect()
     }
 
+    /// Current decision level. This returns 0 if in the root level.
+    pub fn level(&self) -> usize {
+        self.decision_levels.len() - 1
+    }
+
+    pub fn backjump(&mut self, level: usize) {
+        self.decision_levels.truncate(level + 1);
+    }
+
+    pub fn level_of(&self, id: NonZeroU32) -> Option<usize> {
+        self.decision_levels
+            .iter()
+            .position(|l| l.literals().any(|l2| l2.id == id))
+    }
+
     pub fn push_implicated(&mut self, literal: Literal, reason: Clause) {
         self.decision_levels
             .last_mut()
             .expect("Pushing to empty trail")
             .implicated
             .push(Implicated { literal, reason });
+    }
+
+    fn current_level(&self) -> &DecisionLevel {
+        self.decision_levels
+            .last()
+            .expect("Current level is always present")
     }
 }
 
@@ -131,7 +152,7 @@ impl CDCL {
     /// - A conflict clause is found. In this case, the conflict clause is returned. The solver should backjump.
     /// - All implications are resolved. In this case, `None` is returned. The solver should make a decision.
     ///
-    fn unit_propagation(&mut self) -> Option<&Clause> {
+    fn unit_propagation(&mut self) -> Option<Clause> {
         let CNF::Valid(clauses) = &self.expr else {
             unreachable!("Start implication with conflicting CNF");
         };
@@ -141,7 +162,7 @@ impl CDCL {
                 for l in self.trail.literals() {
                     c.substitute(*l);
                     if c.is_conflicted() {
-                        return Some(clause);
+                        return Some(clause.clone());
                     }
                 }
                 if let Some(lit) = c.as_unit() {
@@ -158,11 +179,42 @@ impl CDCL {
         if let Some(solution) = self.expr.is_solved() {
             return solution;
         }
-        loop {
+        'cdcl: loop {
             if let Some(conflict) = self.unit_propagation() {
                 // Backjump
-                dbg!(conflict);
-                todo!()
+                let c = self
+                    .trail
+                    .current_level()
+                    .implicated
+                    .iter()
+                    .rev()
+                    .fold(conflict, |c, i| {
+                        c.clone().resolusion(i.reason.clone()).unwrap_or(c)
+                    });
+                if c.is_conflicted() {
+                    // This means ⊥ can be derived from clauses
+                    return Solution::UnSat;
+                }
+                let mut levels: Vec<_> = c
+                    .literals()
+                    .expect("Already checked")
+                    .map(|lit| {
+                        self.trail
+                            .level_of(lit.id)
+                            .expect("Literal of conflict clause must be in trail")
+                    })
+                    .collect();
+                let n = levels.len();
+                assert!(n > 0, "Conflict clause must have at least one literal");
+                levels.sort_unstable();
+                assert_eq!(
+                    levels[n - 1],
+                    self.trail.level(),
+                    "Conflict clause must have one literal from the current decision level"
+                );
+                self.trail.backjump(if n > 1 { levels[n - 2] } else { 0 });
+                self.expr = self.expr.clone() & c;
+                continue 'cdcl;
             }
             if let Some(solution) = self.make_decision() {
                 return solution;
@@ -222,7 +274,7 @@ mod tests {
         // Since clauses are scanned in order, [-1, 2] yields the x2 literal,
         // and then [-1, -2] yields a conflict
         let conflicted = cdcl.unit_propagation();
-        assert_eq!(conflicted.unwrap(), &clause![-1, -2]);
+        assert_eq!(conflicted.unwrap(), clause![-1, -2]);
     }
 
     #[test]
@@ -232,5 +284,20 @@ mod tests {
             let solution = cdcl.solve();
             assert_eq!(solution, expected);
         }
+    }
+
+    #[test]
+    fn solve_unsat() {
+        // From Knuth 4B (112)
+        let expr = clause![1, 2, 3, 4]
+            & clause![1, -2]
+            & clause![-1, -2, -3]
+            & clause![-1, 3]
+            & clause![2, -3]
+            & clause![3, -4];
+
+        let mut cdcl = CDCL::new(expr);
+        let solution = cdcl.solve();
+        assert_eq!(solution, Solution::UnSat);
     }
 }
