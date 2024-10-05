@@ -117,7 +117,7 @@ impl Trail {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
 pub struct CDCL {
     expr: CNF,
     trail: Trail,

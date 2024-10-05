@@ -501,9 +501,10 @@ impl Not for Clause {
 /// let expr = !(lit!(1) | lit!(2)) & lit!(3);
 /// assert_eq!(expr.to_string(), "(¬x1) ∧ (¬x2) ∧ (x3)");
 /// ```
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, Default)]
 pub enum CNF {
     Valid(Vec<Clause>),
+    #[default]
     Conflicted,
 }
 
