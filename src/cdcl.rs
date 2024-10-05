@@ -213,7 +213,7 @@ impl CDCL {
                     "Conflict clause must have one literal from the current decision level"
                 );
                 self.trail.backjump(if n > 1 { levels[n - 2] } else { 0 });
-                self.expr = self.expr.clone() & c;
+                self.expr.add_clause(c);
                 continue 'cdcl;
             }
             if let Some(solution) = self.make_decision() {

@@ -680,6 +680,15 @@ impl CNF {
         }
     }
 
+    pub fn add_clause(&mut self, clause: Clause) {
+        if let Self::Valid(clauses) = self {
+            clauses.push(clause);
+            clauses.sort_unstable();
+            clauses.dedup();
+        }
+        // Do nothing if the CNF is already conflicted
+    }
+
     /// List up all unit clauses, single variable or its negation, as a [State] with remaining clauses as a new [CNF]
     ///
     /// ```rust
@@ -812,15 +821,17 @@ impl BitOr<CNF> for Literal {
 
 impl BitAnd<Literal> for CNF {
     type Output = Self;
-    fn bitand(self, rhs: Literal) -> Self {
-        self & CNF::from(rhs)
+    fn bitand(mut self, rhs: Literal) -> Self {
+        self.add_clause(rhs.into());
+        self
     }
 }
 
 impl BitAnd<Clause> for CNF {
     type Output = Self;
-    fn bitand(self, rhs: Clause) -> Self {
-        self & CNF::from(rhs)
+    fn bitand(mut self, rhs: Clause) -> Self {
+        self.add_clause(rhs);
+        self
     }
 }
 
