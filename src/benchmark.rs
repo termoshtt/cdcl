@@ -1,4 +1,4 @@
-use crate::{Canceled, Solution, Solver, CNF};
+use crate::{Canceled, Solution, TimeoutSolver, CNF};
 use anyhow::Result;
 use rgbd::{Digest, SatResult};
 use serde::{Deserialize, Serialize};
@@ -16,7 +16,7 @@ pub struct Entry {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Report {
-    solver: &'static str,
+    solver: String,
     timeout_msecs: u128,
     entries: Vec<Entry>,
     sorted_elapsed_times: Vec<u128>,
@@ -29,7 +29,8 @@ impl Report {
 }
 
 pub fn benchmark(
-    solver: &mut dyn Solver,
+    solver_name: String,
+    solver: TimeoutSolver,
     digests: Vec<Digest>,
     timeout: Duration,
 ) -> Result<Report> {
@@ -42,7 +43,7 @@ pub fn benchmark(
         let expr = CNF::from_rgbd(digest.read()?);
         log::trace!("{:<7} ({i}/{n}): {}", "Solving", digest.deref());
         let start = Instant::now();
-        let solution = solver.solve(expr, timeout);
+        let solution = solver(expr, timeout);
         let elapsed = start.elapsed();
         let answer = answers.get(digest.deref());
         match solution {
@@ -118,7 +119,7 @@ pub fn benchmark(
     sorted_elapsed_times.sort_unstable();
 
     Ok(Report {
-        solver: solver.name(),
+        solver: solver_name,
         timeout_msecs,
         entries,
         sorted_elapsed_times,
