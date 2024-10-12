@@ -212,6 +212,21 @@ impl Ord for Clause {
 }
 
 impl Clause {
+    pub fn literals(&self) -> Option<impl Iterator<Item = &Literal>> {
+        match self {
+            Self::Valid { literals } => Some(literals.iter()),
+            Self::Conflicted => None,
+        }
+    }
+
+    /// Number of literals in the clause
+    pub fn num_literals(&self) -> usize {
+        match self {
+            Self::Valid { literals } => literals.len(),
+            Self::Conflicted => 0,
+        }
+    }
+
     pub fn contains(&self, lit: Literal) -> bool {
         match self {
             Self::Valid { literals } => literals.contains(&lit),
@@ -235,10 +250,7 @@ impl Clause {
     }
 
     pub fn is_conflicted(&self) -> bool {
-        match self {
-            Self::Conflicted => true,
-            Self::Valid { .. } => false,
-        }
+        matches!(self, Self::Conflicted)
     }
 
     pub fn from_literals(literals: &[Literal]) -> Self {
@@ -351,7 +363,11 @@ impl Clause {
                 if self.contains(a) && other.contains(b) {
                     self.remove(a);
                     other.remove(b);
-                    return Ok(self | other);
+                    let out = self | other;
+                    if out.num_literals() == 0 {
+                        return Ok(Clause::Conflicted);
+                    }
+                    return Ok(out);
                 }
             }
         }
@@ -437,6 +453,13 @@ impl BitOr<Literal> for Clause {
     }
 }
 
+impl BitAnd for Clause {
+    type Output = CNF;
+    fn bitand(self, rhs: Self) -> Self::Output {
+        CNF::from(self) & CNF::from(rhs)
+    }
+}
+
 impl Not for Clause {
     type Output = CNF;
     fn not(self) -> Self::Output {
@@ -478,9 +501,10 @@ impl Not for Clause {
 /// let expr = !(lit!(1) | lit!(2)) & lit!(3);
 /// assert_eq!(expr.to_string(), "(¬x1) ∧ (¬x2) ∧ (x3)");
 /// ```
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, Default)]
 pub enum CNF {
     Valid(Vec<Clause>),
+    #[default]
     Conflicted,
 }
 
@@ -657,6 +681,15 @@ impl CNF {
         }
     }
 
+    pub fn add_clause(&mut self, clause: Clause) {
+        if let Self::Valid(clauses) = self {
+            clauses.push(clause);
+            clauses.sort_unstable();
+            clauses.dedup();
+        }
+        // Do nothing if the CNF is already conflicted
+    }
+
     /// List up all unit clauses, single variable or its negation, as a [State] with remaining clauses as a new [CNF]
     ///
     /// ```rust
@@ -773,6 +806,13 @@ impl BitOr<Literal> for CNF {
     }
 }
 
+impl BitOr<Clause> for CNF {
+    type Output = Self;
+    fn bitor(self, rhs: Clause) -> Self {
+        self | CNF::from(rhs)
+    }
+}
+
 impl BitOr<CNF> for Literal {
     type Output = CNF;
     fn bitor(self, rhs: CNF) -> CNF {
@@ -782,12 +822,27 @@ impl BitOr<CNF> for Literal {
 
 impl BitAnd<Literal> for CNF {
     type Output = Self;
-    fn bitand(self, rhs: Literal) -> Self {
-        self & CNF::from(rhs)
+    fn bitand(mut self, rhs: Literal) -> Self {
+        self.add_clause(rhs.into());
+        self
+    }
+}
+
+impl BitAnd<Clause> for CNF {
+    type Output = Self;
+    fn bitand(mut self, rhs: Clause) -> Self {
+        self.add_clause(rhs);
+        self
     }
 }
 
 impl BitAnd<CNF> for Literal {
+    type Output = CNF;
+    fn bitand(self, rhs: CNF) -> CNF {
+        CNF::from(self) & rhs
+    }
+}
+impl BitAnd<CNF> for Clause {
     type Output = CNF;
     fn bitand(self, rhs: CNF) -> CNF {
         CNF::from(self) & rhs

@@ -1,4 +1,4 @@
-use cdcl::{Solver, CNF, DPLL};
+use cdcl::{dpll, CancelToken, CNF};
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 
 const SAT_DIGETS: &[&str] = &[
@@ -15,14 +15,13 @@ const UNSAT_DIGEST: &[&str] = &[
     "00f969737ba4338bd233cd3ed249bd55",
 ];
 
-fn dpll(c: &mut Criterion) {
+fn bench_dpll(c: &mut Criterion) {
     let mut sat = c.benchmark_group("SAT");
     for digest in SAT_DIGETS {
-        let mut solver = DPLL::default();
         let expr = CNF::from_rgbd(rgbd::Digest::new(digest.to_string()).read().unwrap());
-        sat.bench_with_input(BenchmarkId::new(solver.name(), digest), &expr, |b, expr| {
+        sat.bench_with_input(BenchmarkId::new("dpll", digest), &expr, |b, expr| {
             b.iter(|| {
-                let _solution = solver.solve_cancelable(expr.clone(), Default::default());
+                let _solution = dpll(expr.clone(), CancelToken::new()).unwrap();
             })
         });
     }
@@ -30,15 +29,14 @@ fn dpll(c: &mut Criterion) {
 
     let mut unsat = c.benchmark_group("UNSAT");
     for digest in UNSAT_DIGEST {
-        let mut solver = DPLL::default();
         let expr = CNF::from_rgbd(rgbd::Digest::new(digest.to_string()).read().unwrap());
-        unsat.bench_with_input(BenchmarkId::new(solver.name(), digest), &expr, |b, expr| {
+        unsat.bench_with_input(BenchmarkId::new("dpll", digest), &expr, |b, expr| {
             b.iter(|| {
-                let _solution = solver.solve_cancelable(expr.clone(), Default::default());
+                let _solution = dpll(expr.clone(), Default::default());
             })
         });
     }
 }
 
-criterion_group!(benches, dpll);
+criterion_group!(benches, bench_dpll);
 criterion_main!(benches);

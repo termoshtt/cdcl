@@ -2,6 +2,7 @@
 
 pub mod benchmark;
 mod brute_force;
+mod cdcl;
 mod dpll;
 mod expr;
 mod selector;
@@ -10,6 +11,7 @@ mod selector;
 pub(crate) mod testing;
 
 pub use brute_force::*;
+pub use cdcl::*;
 pub use dpll::*;
 pub use expr::*;
 pub use selector::*;
@@ -94,18 +96,20 @@ impl CancelToken {
     }
 }
 
-pub trait Solver {
-    fn name(&self) -> &'static str;
+pub type CancelableSolver = Box<dyn Fn(CNF, CancelToken) -> Cancelable<Solution>>;
+pub type TimeoutSolver = Box<dyn Fn(CNF, Duration) -> Cancelable<Solution>>;
 
-    fn solve_cancelable(&mut self, expr: CNF, cancel_token: CancelToken) -> Cancelable<Solution>;
-
-    fn solve(&mut self, expr: CNF, timeout: Duration) -> Cancelable<Solution> {
-        let cancel_token = CancelToken::new();
-        let t = cancel_token.clone();
+pub fn as_timeout_solver(
+    cancelable: impl Fn(CNF, CancelToken) -> Cancelable<Solution> + 'static,
+) -> TimeoutSolver {
+    let timeout_solver = move |expr, timeout| {
+        let recv = CancelToken::new();
+        let send = recv.clone();
         std::thread::spawn(move || {
             std::thread::sleep(timeout);
-            t.cancel();
+            send.cancel();
         });
-        self.solve_cancelable(expr, cancel_token)
-    }
+        cancelable(expr, recv)
+    };
+    Box::new(timeout_solver)
 }

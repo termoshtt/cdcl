@@ -68,22 +68,25 @@ fn main() -> Result<()> {
     Builder::from_env(Env::default().filter_or("RUST_LOG", "info")).init();
 
     let args = Args::parse();
-    let mut solver: Box<dyn Solver> = match args.algorithm.as_str() {
-        "brute_force" => Box::new(BruteForce {}),
-        "dpll" => Box::new(DPLL {}),
-        _ => bail!("Unknown algorithm: {}", args.algorithm),
+    let name = args.algorithm.clone();
+    let solver: TimeoutSolver = match name.as_str() {
+        "brute_force" => as_timeout_solver(brute_force),
+        "dpll" => as_timeout_solver(dpll),
+        "cdcl" => as_timeout_solver(cdcl),
+        _ => bail!("Unknown algorithm: {}", name),
     };
     let (title, digests) = args.digests()?;
 
     let report = cdcl::benchmark::benchmark(
-        solver.as_mut(),
+        name.clone(),
+        solver,
         digests,
         Duration::from_secs(args.timeout_secs),
     )?;
 
     let out = PathBuf::from(format!(
         "report_{title}_{}_{}.json",
-        args.algorithm,
+        name,
         std::process::id(),
     ));
     log::info!("Report written to {}", out.display());
