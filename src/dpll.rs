@@ -1,4 +1,4 @@
-use crate::{take_minimal_id, CancelToken, Literal, Solution, Solver, State, CNF};
+use crate::{take_minimal_id, CancelToken, Cancelable, Literal, Solution, Solver, State, CNF};
 use std::num::NonZeroU32;
 
 #[derive(Default)]
@@ -8,7 +8,7 @@ impl Solver for DPLL {
     fn name(&self) -> &'static str {
         "dpll"
     }
-    fn solve_cancelable(&mut self, expr: CNF, cancel_token: CancelToken) -> Solution {
+    fn solve_cancelable(&mut self, expr: CNF, cancel_token: CancelToken) -> Cancelable<Solution> {
         dpll(expr, take_minimal_id, cancel_token)
     }
 }
@@ -17,14 +17,12 @@ pub fn dpll(
     mut input: CNF,
     selector: fn(&CNF) -> NonZeroU32,
     cancel_token: CancelToken,
-) -> Solution {
+) -> Cancelable<Solution> {
     let mut state = State::default();
 
     // Unit propagation
     loop {
-        if cancel_token.is_canceled() {
-            return Solution::Canceled;
-        }
+        cancel_token.is_canceled()?;
         let units = input.take_unit_clauses();
         if units.is_empty() {
             break;
@@ -36,8 +34,8 @@ pub fn dpll(
     }
 
     match input.is_solved() {
-        Some(Solution::Sat(..)) => return Solution::Sat(state),
-        Some(Solution::UnSat) => return Solution::UnSat,
+        Some(Solution::Sat(..)) => return Ok(Solution::Sat(state)),
+        Some(Solution::UnSat) => return Ok(Solution::UnSat),
         _ => {}
     }
 
@@ -50,17 +48,16 @@ pub fn dpll(
         log::trace!("Decision: {}", lit);
         let mut new = input.clone();
         new.substitute(lit);
-        match dpll(new, selector, cancel_token.clone()) {
+        match dpll(new, selector, cancel_token.clone())? {
             Solution::Sat(mut sub_state) => {
                 state.append(&mut sub_state);
                 state.insert(lit);
-                return Solution::Sat(state);
+                return Ok(Solution::Sat(state));
             }
             Solution::UnSat => continue,
-            Solution::Canceled => return Solution::Canceled,
         }
     }
-    Solution::UnSat
+    Ok(Solution::UnSat)
 }
 
 #[cfg(test)]
@@ -73,7 +70,7 @@ mod tests {
 
         for (expr, expected) in crate::testing::single_solution_cases() {
             assert_eq!(
-                dpll(expr.clone(), crate::take_minimal_id, cancel_token.clone()),
+                dpll(expr.clone(), crate::take_minimal_id, cancel_token.clone()).unwrap(),
                 expected,
                 "Failed on {expr:?}",
             );

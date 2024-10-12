@@ -18,6 +18,7 @@ pub use selector::*;
 
 use std::{
     collections::BTreeSet,
+    fmt,
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc,
@@ -44,8 +45,6 @@ pub enum Solution {
     Sat(State),
     /// Prove unsatisfiability
     UnSat,
-    /// Solver is canceled
-    Canceled,
 }
 
 impl Solution {
@@ -56,6 +55,19 @@ impl Solution {
         }
     }
 }
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Canceled;
+
+impl fmt::Display for Canceled {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Canceled")
+    }
+}
+
+impl std::error::Error for Canceled {}
+
+pub type Cancelable<T> = Result<T, Canceled>;
 
 #[derive(Clone)]
 pub struct CancelToken(Arc<AtomicBool>);
@@ -75,17 +87,21 @@ impl CancelToken {
         self.0.store(true, Ordering::Relaxed);
     }
 
-    pub fn is_canceled(&self) -> bool {
-        self.0.load(Ordering::Relaxed)
+    pub fn is_canceled(&self) -> Cancelable<()> {
+        if self.0.load(Ordering::Relaxed) {
+            Err(Canceled)
+        } else {
+            Ok(())
+        }
     }
 }
 
 pub trait Solver {
     fn name(&self) -> &'static str;
 
-    fn solve_cancelable(&mut self, expr: CNF, cancel_token: CancelToken) -> Solution;
+    fn solve_cancelable(&mut self, expr: CNF, cancel_token: CancelToken) -> Cancelable<Solution>;
 
-    fn solve(&mut self, expr: CNF, timeout: Duration) -> Solution {
+    fn solve(&mut self, expr: CNF, timeout: Duration) -> Cancelable<Solution> {
         let cancel_token = CancelToken::new();
         let t = cancel_token.clone();
         std::thread::spawn(move || {
