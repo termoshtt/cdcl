@@ -1,23 +1,6 @@
-use crate::{take_minimal_id, CancelToken, Cancelable, Literal, Solution, Solver, State, CNF};
-use std::num::NonZeroU32;
+use crate::{take_minimal_id, CancelToken, Cancelable, Literal, Solution, State, CNF};
 
-#[derive(Default)]
-pub struct DPLL {}
-
-impl Solver for DPLL {
-    fn name(&self) -> &'static str {
-        "dpll"
-    }
-    fn solve_cancelable(&mut self, expr: CNF, cancel_token: CancelToken) -> Cancelable<Solution> {
-        dpll(expr, take_minimal_id, cancel_token)
-    }
-}
-
-pub fn dpll(
-    mut input: CNF,
-    selector: fn(&CNF) -> NonZeroU32,
-    cancel_token: CancelToken,
-) -> Cancelable<Solution> {
+pub fn dpll(mut input: CNF, cancel_token: CancelToken) -> Cancelable<Solution> {
     let mut state = State::default();
 
     // Unit propagation
@@ -39,7 +22,7 @@ pub fn dpll(
         _ => {}
     }
 
-    let fix = selector(&input);
+    let fix = take_minimal_id(&input);
     for value in [true, false] {
         let lit = Literal {
             id: fix,
@@ -48,7 +31,7 @@ pub fn dpll(
         log::trace!("Decision: {}", lit);
         let mut new = input.clone();
         new.substitute(lit);
-        match dpll(new, selector, cancel_token.clone())? {
+        match dpll(new, cancel_token.clone())? {
             Solution::Sat(mut sub_state) => {
                 state.append(&mut sub_state);
                 state.insert(lit);
@@ -66,11 +49,9 @@ mod tests {
 
     #[test]
     fn test_dpll() {
-        let cancel_token = CancelToken::new();
-
         for (expr, expected) in crate::testing::single_solution_cases() {
             assert_eq!(
-                dpll(expr.clone(), crate::take_minimal_id, cancel_token.clone()).unwrap(),
+                dpll(expr.clone(), CancelToken::new()).unwrap(),
                 expected,
                 "Failed on {expr:?}",
             );

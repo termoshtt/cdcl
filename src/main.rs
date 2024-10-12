@@ -64,26 +64,42 @@ impl Args {
     }
 }
 
+fn timeout(
+    cancelable: fn(CNF, CancelToken) -> Cancelable<Solution>,
+    expr: CNF,
+    duration: Duration,
+) -> Cancelable<Solution> {
+    let recv = CancelToken::new();
+    let send = recv.clone();
+    std::thread::spawn(move || {
+        std::thread::sleep(duration);
+        send.cancel();
+    });
+    cancelable(expr, recv)
+}
+
 fn main() -> Result<()> {
     Builder::from_env(Env::default().filter_or("RUST_LOG", "info")).init();
 
     let args = Args::parse();
-    let mut solver: Box<dyn Solver> = match args.algorithm.as_str() {
-        "brute_force" => Box::new(BruteForce {}),
-        "dpll" => Box::new(DPLL {}),
-        _ => bail!("Unknown algorithm: {}", args.algorithm),
+    let name = args.algorithm.clone();
+    let solver: fn(CNF, Duration) -> Cancelable<Solution> = match name.as_str() {
+        "brute_force" => |expr, duration| timeout(brute_force, expr, duration),
+        "dpll" => |expr, duration| timeout(dpll, expr, duration),
+        _ => bail!("Unknown algorithm: {}", name),
     };
     let (title, digests) = args.digests()?;
 
     let report = cdcl::benchmark::benchmark(
-        solver.as_mut(),
+        name.clone(),
+        solver,
         digests,
         Duration::from_secs(args.timeout_secs),
     )?;
 
     let out = PathBuf::from(format!(
         "report_{title}_{}_{}.json",
-        args.algorithm,
+        name,
         std::process::id(),
     ));
     log::info!("Report written to {}", out.display());

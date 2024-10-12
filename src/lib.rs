@@ -23,7 +23,6 @@ use std::{
         atomic::{AtomicBool, Ordering},
         Arc,
     },
-    time::Duration,
 };
 
 pub type State = BTreeSet<Literal>;
@@ -93,21 +92,5 @@ impl CancelToken {
         } else {
             Ok(())
         }
-    }
-}
-
-pub trait Solver {
-    fn name(&self) -> &'static str;
-
-    fn solve_cancelable(&mut self, expr: CNF, cancel_token: CancelToken) -> Cancelable<Solution>;
-
-    fn solve(&mut self, expr: CNF, timeout: Duration) -> Cancelable<Solution> {
-        let cancel_token = CancelToken::new();
-        let t = cancel_token.clone();
-        std::thread::spawn(move || {
-            std::thread::sleep(timeout);
-            t.cancel();
-        });
-        self.solve_cancelable(expr, cancel_token)
     }
 }
