@@ -72,6 +72,7 @@ fn main() -> Result<()> {
     let solver: TimeoutSolver = match name.as_str() {
         "brute_force" => as_timeout_solver(brute_force),
         "dpll" => as_timeout_solver(dpll),
+        "cdcl" => as_timeout_solver(cdcl),
         _ => bail!("Unknown algorithm: {}", name),
     };
     let (title, digests) = args.digests()?;

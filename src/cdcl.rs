@@ -1,6 +1,11 @@
-use crate::{Clause, Literal, Solution, CNF};
+use crate::{CancelToken, Cancelable, Clause, Literal, Solution, CNF};
 use std::collections::BTreeSet;
 use std::num::NonZeroU32;
+
+pub fn cdcl(expr: CNF, token: CancelToken) -> Cancelable<Solution> {
+    let mut cdcl = CDCL::new(expr);
+    cdcl.solve(token)
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct DecisionLevel {
@@ -152,7 +157,7 @@ impl CDCL {
     /// - A conflict clause is found. In this case, the conflict clause is returned. The solver should backjump.
     /// - All implications are resolved. In this case, `None` is returned. The solver should make a decision.
     ///
-    fn unit_propagation(&mut self) -> Option<Clause> {
+    fn unit_propagation(&mut self, cancel: CancelToken) -> Cancelable<Option<Clause>> {
         let CNF::Valid(clauses) = &self.expr else {
             unreachable!("Start implication with conflicting CNF");
         };
@@ -160,9 +165,10 @@ impl CDCL {
             for clause in clauses {
                 let mut c = clause.clone();
                 for l in self.trail.literals() {
+                    cancel.is_canceled()?;
                     c.substitute(*l);
                     if c.is_conflicted() {
-                        return Some(clause.clone());
+                        return Ok(Some(clause.clone()));
                     }
                 }
                 if let Some(lit) = c.as_unit() {
@@ -172,15 +178,17 @@ impl CDCL {
             }
             break;
         }
-        None
+        Ok(None)
     }
 
-    pub fn solve(&mut self) -> Solution {
+    pub fn solve(&mut self, cancel: CancelToken) -> Cancelable<Solution> {
         if let Some(solution) = self.expr.is_solved() {
-            return solution;
+            return Ok(solution);
         }
+        cancel.is_canceled()?;
+
         'cdcl: loop {
-            if let Some(conflict) = self.unit_propagation() {
+            if let Some(conflict) = self.unit_propagation(cancel.clone())? {
                 // Backjump
                 let c = self
                     .trail
@@ -193,7 +201,7 @@ impl CDCL {
                     });
                 if c.is_conflicted() {
                     // This means ⊥ can be derived from clauses
-                    return Solution::UnSat;
+                    return Ok(Solution::UnSat);
                 }
                 let mut levels: Vec<_> = c
                     .literals()
@@ -217,7 +225,7 @@ impl CDCL {
                 continue 'cdcl;
             }
             if let Some(solution) = self.make_decision() {
-                return solution;
+                return Ok(solution);
             }
         }
     }
@@ -281,7 +289,7 @@ mod tests {
     fn solve_single_solution_cases() {
         for (expr, expected) in crate::testing::single_solution_cases() {
             let mut cdcl = CDCL::new(expr);
-            let solution = cdcl.solve();
+            let solution = cdcl.solve(CancelToken::new()).unwrap();
             assert_eq!(solution, expected);
         }
     }
@@ -297,7 +305,7 @@ mod tests {
             & clause![3, -4];
 
         let mut cdcl = CDCL::new(expr);
-        let solution = cdcl.solve();
+        let solution = cdcl.solve(CancelToken::new()).unwrap();
         assert_eq!(solution, Solution::UnSat);
     }
 }
