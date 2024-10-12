@@ -1,4 +1,4 @@
-use crate::{Solution, Solver, CNF};
+use crate::{Canceled, Solution, Solver, CNF};
 use anyhow::Result;
 use rgbd::{Digest, SatResult};
 use serde::{Deserialize, Serialize};
@@ -46,7 +46,7 @@ pub fn benchmark(
         let elapsed = start.elapsed();
         let answer = answers.get(digest.deref());
         match solution {
-            Solution::Sat(_) => {
+            Ok(Solution::Sat(_)) => {
                 log::info!(
                     "{:<7} ({i}/{n}): {} is SAT (in {:?})",
                     "Solved",
@@ -67,7 +67,7 @@ pub fn benchmark(
                     result: "SAT".to_string(),
                 });
             }
-            Solution::UnSat => {
+            Ok(Solution::UnSat) => {
                 log::info!(
                     "{:<7} ({i}/{n}): {} is UNSAT (in {:?})",
                     "Solved",
@@ -88,7 +88,7 @@ pub fn benchmark(
                     result: "UNSAT".to_string(),
                 });
             }
-            Solution::Canceled => {
+            Err(Canceled) => {
                 log::info!(
                     "{:<7} ({i}/{n}): {} (in {:?})",
                     "Timeout",
