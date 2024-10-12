@@ -245,7 +245,7 @@ mod tests {
         cdcl.make_decision();
         assert_eq!(cdcl.trail.decision_levels[1].decision, Some(lit!(1)));
 
-        let conflicted = cdcl.unit_propagation();
+        let conflicted = cdcl.unit_propagation(CancelToken::new()).unwrap();
         assert!(conflicted.is_none());
 
         assert_eq!(
@@ -281,7 +281,7 @@ mod tests {
 
         // Since clauses are scanned in order, [-1, 2] yields the x2 literal,
         // and then [-1, -2] yields a conflict
-        let conflicted = cdcl.unit_propagation();
+        let conflicted = cdcl.unit_propagation(CancelToken::new()).unwrap();
         assert_eq!(conflicted.unwrap(), clause![-1, -2]);
     }
 
