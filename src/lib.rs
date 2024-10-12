@@ -23,6 +23,7 @@ use std::{
         atomic::{AtomicBool, Ordering},
         Arc,
     },
+    time::Duration,
 };
 
 pub type State = BTreeSet<Literal>;
@@ -93,4 +94,22 @@ impl CancelToken {
             Ok(())
         }
     }
+}
+
+pub type CancelableSolver = Box<dyn Fn(CNF, CancelToken) -> Cancelable<Solution>>;
+pub type TimeoutSolver = Box<dyn Fn(CNF, Duration) -> Cancelable<Solution>>;
+
+pub fn as_timeout_solver(
+    cancelable: impl Fn(CNF, CancelToken) -> Cancelable<Solution> + 'static,
+) -> TimeoutSolver {
+    let timeout_solver = move |expr, timeout| {
+        let recv = CancelToken::new();
+        let send = recv.clone();
+        std::thread::spawn(move || {
+            std::thread::sleep(timeout);
+            send.cancel();
+        });
+        cancelable(expr, recv)
+    };
+    Box::new(timeout_solver)
 }

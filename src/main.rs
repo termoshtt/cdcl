@@ -64,28 +64,14 @@ impl Args {
     }
 }
 
-fn timeout(
-    cancelable: fn(CNF, CancelToken) -> Cancelable<Solution>,
-    expr: CNF,
-    duration: Duration,
-) -> Cancelable<Solution> {
-    let recv = CancelToken::new();
-    let send = recv.clone();
-    std::thread::spawn(move || {
-        std::thread::sleep(duration);
-        send.cancel();
-    });
-    cancelable(expr, recv)
-}
-
 fn main() -> Result<()> {
     Builder::from_env(Env::default().filter_or("RUST_LOG", "info")).init();
 
     let args = Args::parse();
     let name = args.algorithm.clone();
-    let solver: fn(CNF, Duration) -> Cancelable<Solution> = match name.as_str() {
-        "brute_force" => |expr, duration| timeout(brute_force, expr, duration),
-        "dpll" => |expr, duration| timeout(dpll, expr, duration),
+    let solver: TimeoutSolver = match name.as_str() {
+        "brute_force" => as_timeout_solver(brute_force),
+        "dpll" => as_timeout_solver(dpll),
         _ => bail!("Unknown algorithm: {}", name),
     };
     let (title, digests) = args.digests()?;

@@ -1,4 +1,4 @@
-use crate::{Cancelable, Canceled, Solution, CNF};
+use crate::{Canceled, Solution, TimeoutSolver, CNF};
 use anyhow::Result;
 use rgbd::{Digest, SatResult};
 use serde::{Deserialize, Serialize};
@@ -30,7 +30,7 @@ impl Report {
 
 pub fn benchmark(
     solver_name: String,
-    solver: fn(CNF, Duration) -> Cancelable<Solution>,
+    solver: TimeoutSolver,
     digests: Vec<Digest>,
     timeout: Duration,
 ) -> Result<Report> {
