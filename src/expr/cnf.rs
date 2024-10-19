@@ -73,6 +73,11 @@ impl From<Clause> for CNF {
 
 impl PartialEq<Clause> for CNF {
     fn eq(&self, other: &Clause) -> bool {
+        match (self.is_tautology(), other.is_tautology()) {
+            (true, true) => return true,
+            (false, true) | (true, false) => return false,
+            _ => {}
+        }
         match self {
             Self::Valid(clauses) => clauses.len() == 1 && clauses[0] == *other,
             Self::Conflicted => &Clause::Conflicted == other,

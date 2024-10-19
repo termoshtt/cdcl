@@ -108,10 +108,32 @@ impl Clause {
         matches!(self, Self::Conflicted)
     }
 
-    pub fn from_literals(literals: &[Literal]) -> Self {
-        Self::Valid {
-            literals: literals.iter().cloned().collect(),
+    fn check_tautology(&mut self) {
+        if let Self::Valid { literals } = self {
+            if literals.is_empty() {
+                // This is already regarded as a tautology
+                return;
+            }
+            let mut iter = literals.iter().peekable();
+            let prev = iter.next().expect("Already checked");
+            for lit in iter {
+                // The negation of some literal must be next to it since sorted.
+                if prev.id == lit.id && prev.positive != lit.positive {
+                    literals.clear();
+                    return;
+                }
+            }
         }
+    }
+
+    pub fn new(literals: BTreeSet<Literal>) -> Self {
+        let mut new = Self::Valid { literals };
+        new.check_tautology();
+        new
+    }
+
+    pub fn from_literals(literals: &[Literal]) -> Self {
+        Self::new(literals.iter().cloned().collect())
     }
 
     pub fn supp(&self) -> BTreeSet<NonZeroU32> {
@@ -249,9 +271,7 @@ impl PartialEq<Literal> for Clause {
 
 impl From<Vec<i32>> for Clause {
     fn from(literals: Vec<i32>) -> Self {
-        Self::Valid {
-            literals: literals.into_iter().map(Literal::new).collect(),
-        }
+        Self::new(literals.into_iter().map(Literal::new).collect())
     }
 }
 
@@ -290,7 +310,7 @@ impl BitOr for Clause {
         match (self, rhs) {
             (Clause::Valid { mut literals }, Clause::Valid { literals: mut rhs }) => {
                 literals.append(&mut rhs);
-                Clause::Valid { literals }
+                Clause::new(literals)
             }
             // ⊥ ∨ x = x ∨ ⊥ = x
             (Clause::Conflicted, out) | (out, Clause::Conflicted) => out,
@@ -307,7 +327,7 @@ impl BitOr<Literal> for Clause {
         match self {
             Clause::Valid { mut literals } => {
                 literals.insert(rhs);
-                Clause::Valid { literals }
+                Clause::new(literals)
             }
             Clause::Conflicted => Clause::Conflicted,
         }
@@ -381,6 +401,11 @@ mod tests {
         fn test_commutative_literal(a: Clause, b: Literal) {
             assert_eq!(a.clone() | b, b | a.clone());
             assert_eq!(a.clone() & b, b & a.clone());
+        }
+
+        #[test]
+        fn test_tautology(a: Clause) {
+            assert_eq!(a.clone() | !a, Clause::tautology());
         }
     }
 }
