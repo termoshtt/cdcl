@@ -52,7 +52,7 @@ impl FromIterator<Clause> for CNF {
 impl From<bool> for CNF {
     fn from(value: bool) -> Self {
         if value {
-            CNF::always_true()
+            CNF::tautology()
         } else {
             CNF::Conflicted
         }
@@ -126,11 +126,11 @@ impl CNF {
         Self::Valid(vec![clause])
     }
 
-    pub fn always_true() -> Self {
+    pub fn tautology() -> Self {
         Self::Valid(Vec::new())
     }
 
-    pub fn is_true(&self) -> bool {
+    pub fn is_tautology(&self) -> bool {
         match self {
             Self::Valid(clauses) => clauses.iter().all(Clause::is_tautology),
             Self::Conflicted => false,
@@ -147,7 +147,7 @@ impl CNF {
     pub fn is_solved(&self) -> Option<Solution> {
         match self {
             Self::Valid(..) => {
-                if self.is_true() {
+                if self.is_tautology() {
                     Some(Solution::Sat(State::default()))
                 } else {
                     None
@@ -231,7 +231,6 @@ impl CNF {
     /// let expr = CNF::lit(1) & CNF::lit(2);
     /// let state = expr.take_unit_clauses();
     /// assert_eq!(state, state![1, 2]);
-
     /// // x1 ∧ x2 ∧ (x3 ∨ x4)
     /// let expr = CNF::lit(1) & CNF::lit(2) & (CNF::lit(3) | CNF::lit(4));
     /// let state = expr.take_unit_clauses();
@@ -255,7 +254,7 @@ impl CNF {
 
 impl fmt::Debug for CNF {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        if self.is_true() {
+        if self.is_tautology() {
             return write!(f, "⊤");
         }
         match self {
@@ -326,7 +325,7 @@ impl Not for CNF {
                 }
                 out
             }
-            CNF::Conflicted => CNF::always_true(),
+            CNF::Conflicted => CNF::tautology(),
         }
     }
 }

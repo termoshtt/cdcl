@@ -338,7 +338,7 @@ impl Not for Clause {
                 }
                 CNF::Valid(inner)
             }
-            Clause::Conflicted => CNF::always_true(),
+            Clause::Conflicted => CNF::tautology(),
         }
     }
 }
