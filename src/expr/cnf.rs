@@ -42,10 +42,7 @@ pub enum CNF {
 
 impl FromIterator<Clause> for CNF {
     fn from_iter<T: IntoIterator<Item = Clause>>(iter: T) -> Self {
-        let mut inner: Vec<_> = iter.into_iter().collect();
-        inner.sort_unstable();
-        inner.dedup();
-        Self::Valid(inner)
+        Self::from_clauses(iter.into_iter().collect())
     }
 }
 
@@ -95,11 +92,14 @@ impl PartialEq<Literal> for CNF {
 }
 
 impl CNF {
+    pub fn from_clauses(clauses: Vec<Clause>) -> Self {
+        let mut new = Self::Valid(clauses);
+        new.normalize();
+        new
+    }
+
     pub fn from_rgbd(cnf: rgbd::CNF) -> Self {
-        let mut inner: Vec<_> = cnf.clauses.into_iter().map(Clause::from).collect();
-        inner.sort_unstable();
-        inner.dedup();
-        Self::Valid(inner)
+        Self::from_clauses(cnf.clauses.into_iter().map(Clause::from).collect())
     }
 
     /// Parse CNF from DIMACS format
@@ -171,9 +171,8 @@ impl CNF {
                     return;
                 }
             }
-            clauses.sort_unstable();
-            clauses.dedup();
         }
+        self.normalize();
         // Do nothing if the CNF is already conflicted
     }
 
@@ -221,9 +220,8 @@ impl CNF {
     pub fn add_clause(&mut self, clause: Clause) {
         if let Self::Valid(clauses) = self {
             clauses.push(clause);
-            clauses.sort_unstable();
-            clauses.dedup();
         }
+        self.normalize();
         // Do nothing if the CNF is already conflicted
     }
 
@@ -253,6 +251,21 @@ impl CNF {
                 state
             }
             Self::Conflicted => State::default(),
+        }
+    }
+
+    fn normalize(&mut self) {
+        if let Self::Valid(clauses) = self {
+            let mut i = 0;
+            while i < clauses.len() {
+                if clauses[i].is_tautology() {
+                    clauses.swap_remove(i);
+                    continue;
+                }
+                i += 1;
+            }
+            clauses.sort_unstable();
+            clauses.dedup();
         }
     }
 }
@@ -289,9 +302,7 @@ impl BitAnd for CNF {
         match (self, rhs) {
             (CNF::Valid(mut lhs), CNF::Valid(mut rhs)) => {
                 lhs.append(&mut rhs);
-                lhs.sort_unstable();
-                lhs.dedup();
-                CNF::Valid(lhs)
+                CNF::from_clauses(lhs)
             }
             _ => CNF::Conflicted,
         }
@@ -311,9 +322,7 @@ impl BitOr for CNF {
                         inner.push(c.clone() | d.clone())
                     }
                 }
-                inner.sort_unstable();
-                inner.dedup();
-                CNF::Valid(inner)
+                CNF::from_clauses(inner)
             }
         }
     }
