@@ -1,5 +1,6 @@
 use super::{Clause, CNF};
 use maplit::btreeset;
+use proptest::prelude::*;
 use std::{
     fmt,
     num::NonZeroU32,
@@ -146,6 +147,55 @@ impl BitOr<Clause> for Literal {
             }
             // ⊥ ∨ x = x
             Clause::Conflicted => self.into(),
+        }
+    }
+}
+
+impl Arbitrary for Literal {
+    type Parameters = ();
+    type Strategy = BoxedStrategy<Self>;
+
+    fn arbitrary_with(_: Self::Parameters) -> Self::Strategy {
+        (
+            any::<u32>().prop_filter("0 is not allowed for ID", |&id| id != 0),
+            any::<bool>(),
+        )
+            .prop_map(|(id, positive)| Self {
+                id: NonZeroU32::new(id).unwrap(),
+                positive,
+            })
+            .boxed()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    proptest! {
+        #[test]
+        fn test_zero_id_is_not_allowed(lit: Literal) {
+            assert_ne!(lit.id.get(), 0);
+        }
+
+        #[test]
+        fn test_double_negation(lit: Literal) {
+            assert_eq!(!(!lit), lit);
+        }
+
+        #[test]
+        fn test_order_of_negation(lit: Literal) {
+            let negated = !lit;
+            if lit.positive {
+                assert!(negated > lit);
+            } else {
+                assert!(lit > negated);
+            }
+        }
+
+        #[test]
+        fn test_tautology(lit: Literal) {
+            assert_eq!(lit | !lit, Clause::always_true())
         }
     }
 }
