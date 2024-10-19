@@ -39,8 +39,8 @@ use std::{
 /// let c = lit!(2);
 ///
 /// assert_eq!((a | a).to_string(), "x1"); // deduped
-/// assert_eq!((a | b).to_string(), "x1 ∨ ¬x1");
-/// assert_eq!((a | b | c).to_string(), "x1 ∨ ¬x1 ∨ x2");
+/// assert_eq!((a | b).to_string(), "⊤");
+/// assert_eq!((a | b | c).to_string(), "⊤");
 /// ```
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Literal {
@@ -131,6 +131,13 @@ impl fmt::Debug for Literal {
 impl BitOr for Literal {
     type Output = Clause;
     fn bitor(self, rhs: Self) -> Self::Output {
+        if self == rhs {
+            return self.into();
+        }
+        if self.id == rhs.id {
+            debug_assert_eq!(self.positive, !rhs.positive);
+            return Clause::tautology();
+        }
         Clause::Valid {
             literals: btreeset! {self, rhs},
         }
@@ -195,7 +202,7 @@ mod tests {
 
         #[test]
         fn test_tautology(lit: Literal) {
-            assert_eq!(lit | !lit, Clause::always_true())
+            assert_eq!(lit | !lit, Clause::tautology())
         }
     }
 }

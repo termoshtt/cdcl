@@ -96,7 +96,7 @@ impl Clause {
         }
     }
 
-    pub fn is_true(&self) -> bool {
+    pub fn is_tautology(&self) -> bool {
         match self {
             Self::Valid { literals } => literals.is_empty(),
             Self::Conflicted => false,
@@ -120,7 +120,7 @@ impl Clause {
         }
     }
 
-    pub fn always_true() -> Self {
+    pub fn tautology() -> Self {
         Self::Valid {
             literals: BTreeSet::new(),
         }
@@ -147,7 +147,7 @@ impl Clause {
     /// // x1 ∨ x2 is always true when x1 is true
     /// let mut a = clause![1, 2];
     /// a.substitute(lit!(1));
-    /// assert!(a.is_true());
+    /// assert!(a.is_tautology());
     ///
     /// // x1 ∨ x2 becomes x2 when x1 is false
     /// let mut a = clause![1, 2];
@@ -283,6 +283,9 @@ impl fmt::Debug for Clause {
 impl BitOr for Clause {
     type Output = Self;
     fn bitor(self, rhs: Self) -> Self {
+        if self.is_tautology() || rhs.is_tautology() {
+            return Clause::tautology();
+        }
         match (self, rhs) {
             (Clause::Valid { mut literals }, Clause::Valid { literals: mut rhs }) => {
                 literals.append(&mut rhs);
@@ -297,6 +300,9 @@ impl BitOr for Clause {
 impl BitOr<Literal> for Clause {
     type Output = Self;
     fn bitor(self, rhs: Literal) -> Self {
+        if self.is_tautology() {
+            return Clause::tautology();
+        }
         match self {
             Clause::Valid { mut literals } => {
                 literals.insert(rhs);

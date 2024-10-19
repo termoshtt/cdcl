@@ -132,7 +132,7 @@ impl CNF {
 
     pub fn is_true(&self) -> bool {
         match self {
-            Self::Valid(clauses) => clauses.iter().all(Clause::is_true),
+            Self::Valid(clauses) => clauses.iter().all(Clause::is_tautology),
             Self::Conflicted => false,
         }
     }
