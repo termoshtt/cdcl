@@ -161,6 +161,13 @@ impl BitOr<CNF> for Literal {
 impl BitAnd for Literal {
     type Output = CNF;
     fn bitand(self, rhs: Self) -> Self::Output {
+        if self == rhs {
+            return self.into();
+        }
+        if self.id == rhs.id {
+            debug_assert_eq!(self.positive, !rhs.positive);
+            return Clause::Conflicted.into();
+        }
         CNF::from(self) & CNF::from(rhs)
     }
 }
@@ -227,32 +234,30 @@ mod tests {
         }
 
         #[test]
+        fn test_conflict(lit: Literal) {
+            assert_eq!(lit & !lit, Clause::Conflicted)
+        }
+
+        #[test]
         fn test_dedup(lit: Literal) {
             assert_eq!(lit | lit, lit);
         }
 
         #[test]
-        fn test_commute(a: Literal, b: Literal) {
+        fn test_commutative(a: Literal, b: Literal) {
             assert_eq!(a | b, b | a);
+            assert_eq!(a & b, b & a);
         }
 
         #[test]
-        fn test_and_associativity(a: Literal, b: Literal, c: Literal) {
+        fn test_associativity(a: Literal, b: Literal, c: Literal) {
             assert_eq!((a & b) & c, a & (b & c));
-        }
-
-        #[test]
-        fn test_or_associativity(a: Literal, b: Literal, c: Literal) {
             assert_eq!((a | b) | c, a | (b | c));
         }
 
         #[test]
-        fn test_and_or_distributivity(a: Literal, b: Literal, c: Literal) {
+        fn test_distributivity(a: Literal, b: Literal, c: Literal) {
             assert_eq!(a & (b | c), (a & b) | (a & c));
-        }
-
-        #[test]
-        fn test_or_and_distributivity(a: Literal, b: Literal, c: Literal) {
             assert_eq!(a | (b & c), (a | b) & (a | c));
         }
 
