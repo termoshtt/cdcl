@@ -344,6 +344,8 @@ impl BitOr<Clause> for CNF {
         self | CNF::from(rhs)
     }
 }
+impl_bitor_inverse!(Literal, CNF);
+impl_bitor_inverse!(Clause, CNF);
 
 impl BitAnd<Literal> for CNF {
     type Output = Self;
@@ -361,9 +363,5 @@ impl BitAnd<Clause> for CNF {
     }
 }
 
-impl BitAnd<CNF> for Clause {
-    type Output = CNF;
-    fn bitand(self, rhs: CNF) -> CNF {
-        CNF::from(self) & rhs
-    }
-}
+impl_bitand_inverse!(Literal, CNF);
+impl_bitand_inverse!(Clause, CNF);
