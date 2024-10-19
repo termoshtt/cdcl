@@ -137,20 +137,6 @@ impl BitOr for Literal {
     }
 }
 
-impl BitOr<Clause> for Literal {
-    type Output = Clause;
-    fn bitor(self, rhs: Clause) -> Self::Output {
-        match rhs {
-            Clause::Valid { mut literals } => {
-                literals.insert(self);
-                Clause::Valid { literals }
-            }
-            // ⊥ ∨ x = x
-            Clause::Conflicted => self.into(),
-        }
-    }
-}
-
 impl BitAnd for Literal {
     type Output = CNF;
     fn bitand(self, rhs: Self) -> Self::Output {
@@ -161,13 +147,6 @@ impl BitAnd for Literal {
             debug_assert_eq!(self.positive, !rhs.positive);
             return Clause::Conflicted.into();
         }
-        CNF::from(self) & CNF::from(rhs)
-    }
-}
-
-impl BitAnd<Clause> for Literal {
-    type Output = CNF;
-    fn bitand(self, rhs: Clause) -> Self::Output {
         CNF::from(self) & CNF::from(rhs)
     }
 }

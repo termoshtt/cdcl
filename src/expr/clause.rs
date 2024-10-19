@@ -1,6 +1,7 @@
 use super::{Literal, CNF};
 use anyhow::{bail, Result};
 use maplit::btreeset;
+use proptest::prelude::*;
 use std::{
     collections::BTreeSet,
     fmt,
@@ -312,6 +313,7 @@ impl BitOr<Literal> for Clause {
         }
     }
 }
+impl_bitor_inverse!(Literal, Clause);
 
 impl BitAnd for Clause {
     type Output = CNF;
@@ -326,6 +328,7 @@ impl BitAnd<Literal> for Clause {
         CNF::from(self) & CNF::from(rhs)
     }
 }
+impl_bitand_inverse!(Literal, Clause);
 
 impl Not for Clause {
     type Output = CNF;
@@ -339,6 +342,45 @@ impl Not for Clause {
                 CNF::Valid(inner)
             }
             Clause::Conflicted => CNF::tautology(),
+        }
+    }
+}
+
+impl Arbitrary for Clause {
+    type Parameters = usize;
+    type Strategy = BoxedStrategy<Self>;
+
+    fn arbitrary_with(num_literals: Self::Parameters) -> Self::Strategy {
+        proptest::collection::vec(any::<Literal>(), num_literals)
+            .prop_map(|literals| Clause::from_literals(&literals))
+            .boxed()
+    }
+
+    fn arbitrary() -> Self::Strategy {
+        prop_oneof![
+            Just(Clause::Conflicted),
+            Just(Clause::tautology()),
+            (1..=10_usize).prop_flat_map(Self::arbitrary_with)
+        ]
+        .boxed()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    proptest! {
+        #[test]
+        fn test_commutative(a: Clause, b: Clause) {
+            assert_eq!(a.clone() | b.clone(), b.clone() | a.clone());
+            assert_eq!(a.clone() & b.clone(), b.clone() & a.clone());
+        }
+
+        #[test]
+        fn test_commutative_literal(a: Clause, b: Literal) {
+            assert_eq!(a.clone() | b, b | a.clone());
+            assert_eq!(a.clone() & b, b & a.clone());
         }
     }
 }
