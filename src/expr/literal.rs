@@ -90,13 +90,6 @@ impl Not for Literal {
     }
 }
 
-impl BitAnd for Literal {
-    type Output = CNF;
-    fn bitand(self, rhs: Self) -> Self::Output {
-        CNF::from(self) & CNF::from(rhs)
-    }
-}
-
 impl PartialOrd for Literal {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         Some(self.cmp(other))
@@ -158,6 +151,34 @@ impl BitOr<Clause> for Literal {
     }
 }
 
+impl BitOr<CNF> for Literal {
+    type Output = CNF;
+    fn bitor(self, rhs: CNF) -> CNF {
+        CNF::from(self) | rhs
+    }
+}
+
+impl BitAnd for Literal {
+    type Output = CNF;
+    fn bitand(self, rhs: Self) -> Self::Output {
+        CNF::from(self) & CNF::from(rhs)
+    }
+}
+
+impl BitAnd<Clause> for Literal {
+    type Output = CNF;
+    fn bitand(self, rhs: Clause) -> Self::Output {
+        CNF::from(self) & CNF::from(rhs)
+    }
+}
+
+impl BitAnd<CNF> for Literal {
+    type Output = CNF;
+    fn bitand(self, rhs: CNF) -> Self::Output {
+        CNF::from(self) & rhs
+    }
+}
+
 impl Arbitrary for Literal {
     type Parameters = ();
     type Strategy = BoxedStrategy<Self>;
@@ -203,6 +224,42 @@ mod tests {
         #[test]
         fn test_tautology(lit: Literal) {
             assert_eq!(lit | !lit, Clause::tautology())
+        }
+
+        #[test]
+        fn test_dedup(lit: Literal) {
+            assert_eq!(lit | lit, lit);
+        }
+
+        #[test]
+        fn test_commute(a: Literal, b: Literal) {
+            assert_eq!(a | b, b | a);
+        }
+
+        #[test]
+        fn test_and_associativity(a: Literal, b: Literal, c: Literal) {
+            assert_eq!((a & b) & c, a & (b & c));
+        }
+
+        #[test]
+        fn test_or_associativity(a: Literal, b: Literal, c: Literal) {
+            assert_eq!((a | b) | c, a | (b | c));
+        }
+
+        #[test]
+        fn test_and_or_distributivity(a: Literal, b: Literal, c: Literal) {
+            assert_eq!(a & (b | c), (a & b) | (a & c));
+        }
+
+        #[test]
+        fn test_or_and_distributivity(a: Literal, b: Literal, c: Literal) {
+            assert_eq!(a | (b & c), (a | b) & (a | c));
+        }
+
+        #[test]
+        fn test_absorption(a: Literal, b: Literal) {
+            assert_eq!(a | (a & b), a);
+            assert_eq!(a & (a | b), a);
         }
     }
 }

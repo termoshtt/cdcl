@@ -320,6 +320,13 @@ impl BitAnd for Clause {
     }
 }
 
+impl BitAnd<Literal> for Clause {
+    type Output = CNF;
+    fn bitand(self, rhs: Literal) -> Self::Output {
+        CNF::from(self) & CNF::from(rhs)
+    }
+}
+
 impl Not for Clause {
     type Output = CNF;
     fn not(self) -> Self::Output {
