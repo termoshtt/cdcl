@@ -197,7 +197,7 @@ impl CDCL {
                     .iter()
                     .rev()
                     .fold(conflict, |c, i| {
-                        c.clone().resolusion(i.reason.clone()).unwrap_or(c)
+                        c.clone().resolution(i.reason.clone()).unwrap_or(c)
                     });
                 if c.is_conflicted() {
                     // This means ⊥ can be derived from clauses

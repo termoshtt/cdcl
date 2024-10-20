@@ -219,37 +219,37 @@ impl Clause {
         // Do nothing if the clause is already conflicted
     }
 
-    /// Get the resolvant of two clauses
+    /// Get the resolvent of two clauses
     ///
     /// ```rust
     /// use cdcl::{clause, lit};
     ///
     /// let a = clause![1, 2];
     /// let b = clause![-1, 3];
-    /// assert_eq!(a.resolusion(b).unwrap().to_string(), "x2 ∨ x3");
+    /// assert_eq!(a.resolution(b).unwrap().to_string(), "x2 ∨ x3");
     ///
     /// let a = clause![1, 2];
     /// let b = clause![-1, 3];
-    /// assert_eq!(b.resolusion(a).unwrap().to_string(), "x2 ∨ x3");
+    /// assert_eq!(b.resolution(a).unwrap().to_string(), "x2 ∨ x3");
     ///
     /// // No pair
     /// let a = clause![1, 2];
     /// let b = clause![3, 4];
-    /// assert!(a.resolusion(b).is_err());
+    /// assert!(a.resolution(b).is_err());
     ///
     /// // x1 and x1 cannot be a pair
     /// let a = clause![1, 2];
     /// let b = clause![1, 3];
-    /// assert!(a.resolusion(b).is_err());
+    /// assert!(a.resolution(b).is_err());
     ///
     /// // Multiple pairs
     /// let a = clause![1, 2];
     /// let b = clause![-1, -2];
-    /// assert_eq!(a.resolusion(b).unwrap().to_string(), "⊤");
+    /// assert_eq!(a.resolution(b).unwrap().to_string(), "⊤");
     /// ```
     ///
     /// <https://en.wikipedia.org/wiki/Resolution_(logic)>
-    pub fn resolusion(mut self, mut other: Self) -> Result<Self> {
+    pub fn resolution(mut self, mut other: Self) -> Result<Self> {
         let candidates: Vec<NonZeroU32> =
             self.supp().intersection(&other.supp()).cloned().collect();
         for id in candidates {
