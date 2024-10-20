@@ -89,6 +89,27 @@ impl Clause {
         }
     }
 
+    /// Check if the clause intersects with another set of literals
+    ///
+    /// ```rust
+    /// use cdcl::{clause, lit};
+    /// use std::collections::BTreeSet;
+    ///
+    /// let a = clause![1, 2];
+    /// let b = BTreeSet::from_iter(vec![lit!(1), lit!(3)]);
+    /// assert!(a.intersect(&b));
+    ///
+    /// let a = clause![1, 2];
+    /// let b = BTreeSet::from_iter(vec![lit!(3), lit!(4)]);
+    /// assert!(!a.intersect(&b));
+    /// ```
+    pub fn intersect(&self, other: &BTreeSet<Literal>) -> bool {
+        match self {
+            Self::Valid { literals } => literals.intersection(other).next().is_some(),
+            Self::Conflicted => false,
+        }
+    }
+
     pub fn remove(&mut self, lit: Literal) -> bool {
         if let Self::Valid { literals } = self {
             literals.remove(&lit)
@@ -223,7 +244,7 @@ impl Clause {
     /// // Multiple pairs
     /// let a = clause![1, 2];
     /// let b = clause![-1, -2];
-    /// assert_eq!(a.resolusion(b).unwrap().to_string(), "x2 ∨ ¬x2");  // FIXME: Should be ⊤
+    /// assert_eq!(a.resolusion(b).unwrap().to_string(), "⊤");
     /// ```
     ///
     /// <https://en.wikipedia.org/wiki/Resolution_(logic)>
@@ -240,11 +261,7 @@ impl Clause {
                 if self.contains(a) && other.contains(b) {
                     self.remove(a);
                     other.remove(b);
-                    let out = self | other;
-                    if out.num_literals() == 0 {
-                        return Ok(Clause::Conflicted);
-                    }
-                    return Ok(out);
+                    return Ok(self | other);
                 }
             }
         }

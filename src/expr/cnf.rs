@@ -258,6 +258,10 @@ impl CNF {
         if let Self::Valid(clauses) = self {
             let mut i = 0;
             while i < clauses.len() {
+                if clauses[i].is_conflicted() {
+                    *self = Self::Conflicted;
+                    return;
+                }
                 if clauses[i].is_tautology() {
                     clauses.swap_remove(i);
                     continue;
@@ -266,6 +270,29 @@ impl CNF {
             }
             clauses.sort_unstable();
             clauses.dedup();
+
+            // absorb
+            let mut units = BTreeSet::new();
+            for clause in clauses.iter() {
+                debug_assert!(clause.num_literals() >= 1);
+                if let Some(lit) = clause.as_unit() {
+                    units.insert(lit);
+                } else {
+                    break;
+                }
+            }
+            let mut i = 0;
+            while i < clauses.len() {
+                if clauses[i].num_literals() <= 1 {
+                    i += 1;
+                    continue;
+                }
+                if clauses[i].intersect(&units) {
+                    clauses.swap_remove(i);
+                    continue;
+                }
+                i += 1;
+            }
         }
     }
 }
