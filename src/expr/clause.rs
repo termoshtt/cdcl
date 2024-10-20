@@ -136,13 +136,14 @@ impl Clause {
                 return;
             }
             let mut iter = literals.iter().peekable();
-            let prev = iter.next().expect("Already checked");
+            let mut prev = iter.next().expect("Already checked");
             for lit in iter {
                 // The negation of some literal must be next to it since sorted.
                 if prev.id == lit.id && prev.positive != lit.positive {
                     literals.clear();
                     return;
                 }
+                prev = lit;
             }
         }
     }
@@ -372,11 +373,7 @@ impl Not for Clause {
     fn not(self) -> Self::Output {
         match self {
             Clause::Valid { literals } => {
-                let mut inner = Vec::new();
-                for lit in literals {
-                    inner.push(Clause::from(!lit));
-                }
-                CNF::Valid(inner)
+                CNF::from_clauses(literals.iter().map(|lit| Clause::from(!*lit)).collect())
             }
             Clause::Conflicted => CNF::tautology(),
         }
