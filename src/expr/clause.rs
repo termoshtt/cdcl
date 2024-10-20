@@ -421,5 +421,33 @@ mod tests {
         fn test_tautology(a: Clause) {
             assert_eq!(a.clone() | !a, Clause::tautology());
         }
+
+        #[test]
+        fn test_conflict(a: Clause) {
+            assert_eq!(a.clone() & !a, Clause::Conflicted)
+        }
+
+        #[test]
+        fn test_dedup(a: Clause) {
+            assert_eq!(a.clone() | a.clone(), a);
+        }
+
+        #[test]
+        fn test_associativity(a: Clause, b: Clause, c: Clause) {
+            assert_eq!((a.clone() & b.clone()) & c.clone(), a.clone() & (b.clone() & c.clone()));
+            assert_eq!((a.clone() | b.clone()) | c.clone(), a.clone() | (b.clone() | c.clone()));
+        }
+
+        #[test]
+        fn test_distributivity(a: Clause, b: Clause, c: Clause) {
+            assert_eq!(a.clone() & (b.clone() | c.clone()), (a.clone() & b.clone()) | (a.clone() & c.clone()));
+            assert_eq!(a.clone() | (b.clone() & c.clone()), (a.clone() | b.clone()) & (a.clone() | c.clone()));
+        }
+
+        #[test]
+        fn test_absorption(a: Clause, b: Clause) {
+            assert_eq!(a.clone() | (a.clone() & b.clone()), a.clone());
+            assert_eq!(a.clone() & (a.clone() | b.clone()), a.clone());
+        }
     }
 }
