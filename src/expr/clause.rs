@@ -381,20 +381,15 @@ impl Not for Clause {
 }
 
 impl Arbitrary for Clause {
-    type Parameters = usize;
+    type Parameters = ();
     type Strategy = BoxedStrategy<Self>;
 
-    fn arbitrary_with(num_literals: Self::Parameters) -> Self::Strategy {
-        proptest::collection::vec(any::<Literal>(), num_literals)
-            .prop_map(|literals| Clause::from_literals(&literals))
-            .boxed()
-    }
-
-    fn arbitrary() -> Self::Strategy {
+    fn arbitrary_with(_: Self::Parameters) -> Self::Strategy {
         prop_oneof![
             Just(Clause::Conflicted),
             Just(Clause::tautology()),
-            (1..=10_usize).prop_flat_map(Self::arbitrary_with)
+            proptest::collection::vec(any::<Literal>(), 0..10)
+                .prop_map(|literals| Clause::from_literals(&literals))
         ]
         .boxed()
     }

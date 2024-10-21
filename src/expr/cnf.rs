@@ -1,6 +1,7 @@
 use super::{Clause, Literal};
 use crate::{Solution, State};
 use anyhow::Result;
+use proptest::prelude::*;
 use std::{
     collections::BTreeSet,
     fmt,
@@ -405,3 +406,69 @@ impl BitAnd<Clause> for CNF {
 
 impl_bitand_inverse!(Literal, CNF);
 impl_bitand_inverse!(Clause, CNF);
+
+impl Arbitrary for CNF {
+    type Parameters = ();
+    type Strategy = BoxedStrategy<Self>;
+
+    fn arbitrary_with(_: Self::Parameters) -> Self::Strategy {
+        prop_oneof![
+            Just(CNF::Conflicted),
+            Just(CNF::tautology()),
+            proptest::collection::vec(Clause::arbitrary(), 0..5).prop_map(CNF::from_clauses),
+        ]
+        .boxed()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    proptest! {
+        #[test]
+        fn test_commutative(a: CNF, b: CNF) {
+            assert_eq!(a.clone() | b.clone(), b.clone() | a.clone());
+            assert_eq!(a.clone() & b.clone(), b.clone() & a.clone());
+        }
+
+        #[test]
+        fn test_commutative_literal(a: CNF, b: Literal) {
+            assert_eq!(a.clone() | b, b | a.clone());
+            assert_eq!(a.clone() & b, b & a.clone());
+        }
+
+        #[test]
+        fn test_tautology(a: CNF) {
+            assert_eq!(a.clone() | !a, CNF::tautology());
+        }
+
+        #[test]
+        fn test_conflict(a: CNF) {
+            assert_eq!(a.clone() & !a, CNF::Conflicted)
+        }
+
+        #[test]
+        fn test_dedup(a: CNF) {
+            assert_eq!(a.clone() | a.clone(), a);
+        }
+
+        #[test]
+        fn test_associativity(a: CNF, b: CNF, c: CNF) {
+            assert_eq!((a.clone() & b.clone()) & c.clone(), a.clone() & (b.clone() & c.clone()));
+            assert_eq!((a.clone() | b.clone()) | c.clone(), a.clone() | (b.clone() | c.clone()));
+        }
+
+        #[test]
+        fn test_distributivity(a: CNF, b: CNF, c: CNF) {
+            assert_eq!(a.clone() & (b.clone() | c.clone()), (a.clone() & b.clone()) | (a.clone() & c.clone()));
+            assert_eq!(a.clone() | (b.clone() & c.clone()), (a.clone() | b.clone()) & (a.clone() | c.clone()));
+        }
+
+        #[test]
+        fn test_absorption(a: CNF, b: CNF) {
+            assert_eq!(a.clone() | (a.clone() & b.clone()), a.clone());
+            assert_eq!(a.clone() & (a.clone() | b.clone()), a.clone());
+        }
+    }
+}
