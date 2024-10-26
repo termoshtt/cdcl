@@ -277,25 +277,14 @@ impl CNF {
             clauses.sort_unstable();
             clauses.dedup();
 
-            // absorb
-            let mut units = BTreeSet::new();
-            for clause in clauses.iter() {
-                debug_assert!(clause.num_literals() >= 1);
-                if let Some(lit) = clause.as_unit() {
-                    units.insert(lit);
-                } else {
-                    break;
-                }
-            }
+            // Remove redundant clauses
             let mut i = 0;
-            while i < clauses.len() {
-                if clauses[i].num_literals() <= 1 {
-                    i += 1;
-                    continue;
-                }
-                if clauses[i].intersect(&units) {
-                    clauses.swap_remove(i);
-                    continue;
+            'outer: while i < clauses.len() {
+                for j in 0..i {
+                    if clauses[j].implies(&clauses[i]) {
+                        clauses.swap_remove(i);
+                        continue 'outer;
+                    }
                 }
                 i += 1;
             }
@@ -333,9 +322,11 @@ impl BitAnd for CNF {
     type Output = Self;
     fn bitand(self, rhs: Self) -> Self {
         match (self, rhs) {
-            (CNF::Valid(mut lhs), CNF::Valid(mut rhs)) => {
-                lhs.append(&mut rhs);
-                CNF::from_clauses(lhs)
+            (mut new @ CNF::Valid(..), CNF::Valid(rhs)) => {
+                for c in rhs {
+                    new.add_clause(c);
+                }
+                new
             }
             _ => CNF::Conflicted,
         }
@@ -355,7 +346,9 @@ impl BitOr for CNF {
                 let mut new = CNF::tautology();
                 for c in &lhs {
                     for d in &rhs {
-                        new.add_clause(c.clone() | d.clone())
+                        dbg!(&c, &d);
+                        new.add_clause(c.clone() | d.clone());
+                        dbg!(&new);
                     }
                 }
                 new
@@ -474,8 +467,12 @@ mod tests {
         }
 
         #[test]
-        fn test_absorption(a: CNF, b: CNF) {
+        fn test_absorption_or(a: CNF, b: CNF) {
             assert_eq!(a.clone() | (a.clone() & b.clone()), a.clone());
+        }
+
+        #[test]
+        fn test_absorption_and(a: CNF, b: CNF) {
             assert_eq!(a.clone() & (a.clone() | b.clone()), a.clone());
         }
     }
