@@ -453,8 +453,12 @@ mod tests {
         }
 
         #[test]
-        fn test_associativity(a: Clause, b: Clause, c: Clause) {
-            assert_eq!((a.clone() & b.clone()) & c.clone(), a.clone() & (b.clone() & c.clone()));
+        fn test_associativity_and(a: Clause, b: Clause, c: Clause) {
+            assert_eq!(dbg!(a.clone() & b.clone()) & c.clone(), a.clone() & dbg!(b.clone() & c.clone()));
+        }
+
+        #[test]
+        fn test_associativity_or(a: Clause, b: Clause, c: Clause) {
             assert_eq!((a.clone() | b.clone()) | c.clone(), a.clone() | (b.clone() | c.clone()));
         }
 

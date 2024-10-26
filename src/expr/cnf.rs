@@ -65,7 +65,11 @@ impl From<Literal> for CNF {
 
 impl From<Clause> for CNF {
     fn from(clause: Clause) -> Self {
-        Self::Valid(vec![clause])
+        if clause.is_conflicted() {
+            CNF::Conflicted
+        } else {
+            Self::Valid(vec![clause])
+        }
     }
 }
 
