@@ -281,6 +281,19 @@ impl CNF {
             clauses.sort_unstable();
             clauses.dedup();
 
+            // Check for conflict e.g. (x1) ∧ (¬x1)
+            for i in 1..clauses.len() {
+                if clauses[i].num_literals() > 1 {
+                    break;
+                }
+                if let (Some(a), Some(b)) = (clauses[i - 1].as_unit(), clauses[i].as_unit()) {
+                    if a == !b {
+                        *self = Self::Conflicted;
+                        return;
+                    }
+                }
+            }
+
             // Remove redundant clauses
             let mut i = 0;
             'outer: while i < clauses.len() {
