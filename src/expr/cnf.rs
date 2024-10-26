@@ -220,6 +220,11 @@ impl CNF {
 
     pub fn add_clause(&mut self, clause: Clause) {
         if let Self::Valid(clauses) = self {
+            for c in clauses.iter() {
+                if c.implies(&clause) {
+                    return;
+                }
+            }
             clauses.push(clause);
         }
         self.normalize();
@@ -341,16 +346,19 @@ impl BitOr for CNF {
     type Output = Self;
 
     fn bitor(self, rhs: Self) -> Self {
+        if self.is_tautology() || rhs.is_tautology() {
+            return CNF::tautology();
+        }
         match (self, rhs) {
             (CNF::Conflicted, other) | (other, CNF::Conflicted) => other,
             (CNF::Valid(lhs), CNF::Valid(rhs)) => {
-                let mut inner = Vec::new();
+                let mut new = CNF::tautology();
                 for c in &lhs {
                     for d in &rhs {
-                        inner.push(c.clone() | d.clone())
+                        new.add_clause(c.clone() | d.clone())
                     }
                 }
-                CNF::from_clauses(inner)
+                new
             }
         }
     }

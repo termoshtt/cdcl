@@ -110,6 +110,31 @@ impl Clause {
         }
     }
 
+    /// Check if `self` then `other`
+    ///
+    /// ```rust
+    /// use cdcl::{clause, lit};
+    ///
+    /// let a = clause![1, 2];
+    /// let b = clause![1, 2, 3];
+    /// assert!(a.implies(&b));
+    ///
+    /// let c = clause![1, -2];
+    /// assert!(!a.implies(&c));
+    ///
+    /// let d = clause![2];
+    /// assert!(d.implies(&a));
+    /// assert!(d.implies(&b));
+    /// assert!(!d.implies(&c));
+    /// ```
+    pub fn implies(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Valid { literals: a }, Self::Valid { literals: b }) => a.is_subset(b),
+            (Self::Conflicted, _) => true,
+            (_, Self::Conflicted) => false,
+        }
+    }
+
     pub fn remove(&mut self, lit: Literal) -> bool {
         if let Self::Valid { literals } = self {
             literals.remove(&lit)
