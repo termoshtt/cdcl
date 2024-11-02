@@ -96,10 +96,15 @@ impl PartialEq<Literal> for CNF {
     }
 }
 
+/// An error type for short-circuiting conflict detection during normalization
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct DetectConflict;
+
 impl CNF {
     pub fn from_clauses(clauses: Vec<Clause>) -> Self {
         let mut new = Self::Valid(clauses);
-        new.normalize();
+        // Conflict is allowed
+        let _ = new.normalize();
         new
     }
 
@@ -167,24 +172,23 @@ impl CNF {
         }
     }
 
-    pub fn substitute(&mut self, lit: Literal) {
-        if let Self::Valid(clauses) = self {
-            for clause in clauses.iter_mut() {
-                clause.substitute(lit);
-                if clause == &Clause::Conflicted {
-                    *self = Self::Conflicted;
-                    return;
-                }
+    pub fn substitute(&mut self, lit: Literal) -> Result<(), DetectConflict> {
+        let Self::Valid(clauses) = self else {
+            return Err(DetectConflict);
+        };
+        for clause in clauses.iter_mut() {
+            clause.substitute(lit);
+            if clause == &Clause::Conflicted {
+                *self = Self::Conflicted;
+                return Err(DetectConflict);
             }
         }
-        self.normalize();
-        // Do nothing if the CNF is already conflicted
+        self.normalize()
     }
 
     pub fn evaluate(&mut self, state: &State) -> bool {
         for lit in state.iter() {
-            self.substitute(*lit);
-            if self == &Self::Conflicted {
+            if self.substitute(*lit).is_err() {
                 return false;
             }
         }
@@ -222,17 +226,18 @@ impl CNF {
         }
     }
 
-    pub fn add_clause(&mut self, clause: Clause) {
-        if let Self::Valid(clauses) = self {
-            for c in clauses.iter() {
-                if c.implies(&clause) {
-                    return;
-                }
+    pub fn add_clause(&mut self, clause: Clause) -> Result<(), DetectConflict> {
+        let Self::Valid(clauses) = self else {
+            return Err(DetectConflict);
+        };
+        for c in clauses.iter() {
+            if c.implies(&clause) {
+                // No need to add
+                return Ok(());
             }
-            clauses.push(clause);
         }
-        self.normalize();
-        // Do nothing if the CNF is already conflicted
+        clauses.push(clause);
+        self.normalize()
     }
 
     /// List up all unit clauses, single variable or its negation, as a [State] with remaining clauses as a new [CNF]
@@ -264,48 +269,66 @@ impl CNF {
         }
     }
 
-    fn normalize(&mut self) {
-        if let Self::Valid(clauses) = self {
-            let mut i = 0;
-            while i < clauses.len() {
-                if clauses[i].is_conflicted() {
+    /// Remove tautologies, and detect conflicts
+    fn cleanup(&mut self) -> Result<(), DetectConflict> {
+        let Self::Valid(clauses) = self else {
+            return Err(DetectConflict);
+        };
+        let mut i = 0;
+        while i < clauses.len() {
+            if clauses[i].is_conflicted() {
+                *self = Self::Conflicted;
+                return Err(DetectConflict);
+            }
+            if clauses[i].is_tautology() {
+                clauses.swap_remove(i);
+                continue;
+            }
+            i += 1;
+        }
+        Ok(())
+    }
+
+    fn sort_dedup(&mut self) -> Result<(), DetectConflict> {
+        let Self::Valid(clauses) = self else {
+            return Err(DetectConflict);
+        };
+        clauses.sort_unstable();
+        clauses.dedup();
+        Ok(())
+    }
+
+    fn normalize(&mut self) -> Result<(), DetectConflict> {
+        self.cleanup()?;
+        self.sort_dedup()?;
+        let Self::Valid(clauses) = self else {
+            return Err(DetectConflict);
+        };
+        // Check for conflict e.g. (x1) ∧ (¬x1)
+        for i in 1..clauses.len() {
+            if clauses[i].num_literals() > 1 {
+                break;
+            }
+            if let (Some(a), Some(b)) = (clauses[i - 1].as_unit(), clauses[i].as_unit()) {
+                if a == !b {
                     *self = Self::Conflicted;
-                    return;
+                    return Err(DetectConflict);
                 }
-                if clauses[i].is_tautology() {
-                    clauses.swap_remove(i);
-                    continue;
-                }
-                i += 1;
-            }
-            clauses.sort_unstable();
-            clauses.dedup();
-
-            // Check for conflict e.g. (x1) ∧ (¬x1)
-            for i in 1..clauses.len() {
-                if clauses[i].num_literals() > 1 {
-                    break;
-                }
-                if let (Some(a), Some(b)) = (clauses[i - 1].as_unit(), clauses[i].as_unit()) {
-                    if a == !b {
-                        *self = Self::Conflicted;
-                        return;
-                    }
-                }
-            }
-
-            // Remove redundant clauses
-            let mut i = 0;
-            'outer: while i < clauses.len() {
-                for j in 0..i {
-                    if clauses[j].implies(&clauses[i]) {
-                        clauses.swap_remove(i);
-                        continue 'outer;
-                    }
-                }
-                i += 1;
             }
         }
+
+        // Remove redundant clauses
+        let mut i = 0;
+        'outer: while i < clauses.len() {
+            for j in 0..i {
+                if clauses[j].implies(&clauses[i]) {
+                    clauses.swap_remove(i);
+                    continue 'outer;
+                }
+            }
+            i += 1;
+        }
+        Ok(())
     }
 }
 
@@ -341,7 +364,9 @@ impl BitAnd for CNF {
         match (self, rhs) {
             (mut new @ CNF::Valid(..), CNF::Valid(rhs)) => {
                 for c in rhs {
-                    new.add_clause(c);
+                    if new.add_clause(c).is_err() {
+                        return CNF::Conflicted;
+                    };
                 }
                 new
             }
@@ -363,9 +388,9 @@ impl BitOr for CNF {
                 let mut new = CNF::tautology();
                 for c in &lhs {
                     for d in &rhs {
-                        dbg!(&c, &d);
-                        new.add_clause(c.clone() | d.clone());
-                        dbg!(&new);
+                        if new.add_clause(c.clone() | d.clone()).is_err() {
+                            return CNF::Conflicted;
+                        }
                     }
                 }
                 new
@@ -409,16 +434,22 @@ impl_bitor_inverse!(Clause, CNF);
 impl BitAnd<Literal> for CNF {
     type Output = Self;
     fn bitand(mut self, rhs: Literal) -> Self {
-        self.add_clause(rhs.into());
-        self
+        if self.add_clause(rhs.into()).is_err() {
+            Self::Conflicted
+        } else {
+            self
+        }
     }
 }
 
 impl BitAnd<Clause> for CNF {
     type Output = Self;
     fn bitand(mut self, rhs: Clause) -> Self {
-        self.add_clause(rhs);
-        self
+        if self.add_clause(rhs) == Err(DetectConflict) {
+            Self::Conflicted
+        } else {
+            self
+        }
     }
 }
 
