@@ -396,6 +396,9 @@ impl_bitand_inverse!(Literal, Clause);
 impl Not for Clause {
     type Output = CNF;
     fn not(self) -> Self::Output {
+        if self.is_tautology() {
+            return CNF::Conflicted;
+        }
         match self {
             Clause::Valid { literals } => {
                 CNF::from_clauses(literals.iter().map(|lit| Clause::from(!*lit)).collect())

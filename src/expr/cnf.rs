@@ -255,6 +255,10 @@ impl CNF {
     /// assert!(expr.add_clause(lit!(-1).into()).is_err());
     /// ```
     pub fn add_clause(&mut self, clause: Clause) -> Result<(), DetectConflict> {
+        if clause.is_conflicted() {
+            *self = Self::Conflicted;
+            return Err(DetectConflict);
+        }
         let Self::Valid(clauses) = self else {
             return Err(DetectConflict);
         };
@@ -537,11 +541,8 @@ impl BitAnd<Literal> for CNF {
 impl BitAnd<Clause> for CNF {
     type Output = Self;
     fn bitand(mut self, rhs: Clause) -> Self {
-        if self.add_clause(rhs) == Err(DetectConflict) {
-            Self::Conflicted
-        } else {
-            self
-        }
+        let _ = self.add_clause(rhs);
+        self
     }
 }
 
