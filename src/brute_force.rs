@@ -16,7 +16,9 @@ pub fn brute_force(input: CNF, cancel_token: CancelToken) -> Cancelable<Solution
         };
         log::trace!("Decision: {}", lit);
         let mut new = input.clone();
-        new.substitute(lit);
+        if new.substitute(lit).is_err() {
+            continue;
+        }
         match brute_force(new, cancel_token.clone())? {
             Solution::Sat(mut state) => {
                 state.insert(lit);

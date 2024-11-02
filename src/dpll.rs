@@ -11,7 +11,9 @@ pub fn dpll(mut input: CNF, cancel_token: CancelToken) -> Cancelable<Solution> {
             break;
         }
         for lit in units.into_iter() {
-            input.substitute(lit);
+            if input.substitute(lit).is_err() {
+                return Ok(Solution::UnSat);
+            }
             state.insert(lit);
         }
     }
@@ -30,7 +32,9 @@ pub fn dpll(mut input: CNF, cancel_token: CancelToken) -> Cancelable<Solution> {
         };
         log::trace!("Decision: {}", lit);
         let mut new = input.clone();
-        new.substitute(lit);
+        if new.substitute(lit).is_err() {
+            continue;
+        }
         match dpll(new, cancel_token.clone())? {
             Solution::Sat(mut sub_state) => {
                 state.append(&mut sub_state);

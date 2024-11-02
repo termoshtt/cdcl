@@ -182,28 +182,29 @@ impl CDCL {
     }
 
     pub fn solve(&mut self, cancel: CancelToken) -> Cancelable<Solution> {
-        if let Some(solution) = self.expr.is_solved() {
-            return Ok(solution);
-        }
-        cancel.is_canceled()?;
-
         'cdcl: loop {
-            if let Some(conflict) = self.unit_propagation(cancel.clone())? {
+            if let Some(solution) = self.expr.is_solved() {
+                return Ok(solution);
+            }
+            cancel.is_canceled()?;
+
+            if let Some(mut conflict) = self.unit_propagation(cancel.clone())? {
                 // Backjump
-                let c = self
-                    .trail
-                    .current_level()
-                    .implicated
-                    .iter()
-                    .rev()
-                    .fold(conflict, |c, i| {
-                        c.clone().resolusion(i.reason.clone()).unwrap_or(c)
-                    });
-                if c.is_conflicted() {
-                    // This means ⊥ can be derived from clauses
-                    return Ok(Solution::UnSat);
+                for i in self.trail.current_level().implicated.iter().rev() {
+                    if let Ok(c) = conflict.clone().resolution(i.reason.clone()) {
+                        if let Some(lit) = c.as_unit() {
+                            self.expr = self.expr.clone() & lit;
+                            self.trail.backjump(0);
+                            continue 'cdcl;
+                        }
+                        if c.is_conflicted() {
+                            // This means ⊥ can be derived from clauses
+                            return Ok(Solution::UnSat);
+                        }
+                        conflict = c;
+                    }
                 }
-                let mut levels: Vec<_> = c
+                let mut levels: Vec<_> = conflict
                     .literals()
                     .expect("Already checked")
                     .map(|lit| {
@@ -221,7 +222,9 @@ impl CDCL {
                     "Conflict clause must have one literal from the current decision level"
                 );
                 self.trail.backjump(if n > 1 { levels[n - 2] } else { 0 });
-                self.expr.add_clause(c);
+                if self.expr.add_clause(conflict).is_err() {
+                    return Ok(Solution::UnSat);
+                }
                 continue 'cdcl;
             }
             if let Some(solution) = self.make_decision() {
