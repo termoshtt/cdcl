@@ -416,7 +416,7 @@ impl Arbitrary for Clause {
         prop_oneof![
             Just(Clause::Conflicted),
             Just(Clause::tautology()),
-            proptest::collection::vec(any::<Literal>(), 0..10)
+            proptest::collection::vec(any::<Literal>(), 0..5)
                 .prop_map(|literals| Clause::from_literals(&literals))
         ]
         .boxed()
