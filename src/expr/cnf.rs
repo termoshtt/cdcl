@@ -566,6 +566,7 @@ impl Arbitrary for CNF {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::{dpll, CancelToken};
 
     proptest! {
         #[test]
@@ -587,7 +588,14 @@ mod tests {
 
         #[test]
         fn test_conflict(a: CNF) {
-            assert_eq!(a.clone() & !a, CNF::Conflicted)
+            // Although CNF try to normalize given expression,
+            // it is not guaranteed to reduce to CNF::Conflicted for all UNSAT expressions
+            // since it is also a NP-hard problem
+            // Instead, we can check it is UNSAT by DPLL.
+            assert_eq!(
+                dpll(dbg!(a.clone() & dbg!(!a)), CancelToken::new()).unwrap(),
+                Solution::UnSat
+            );
         }
 
         #[test]
