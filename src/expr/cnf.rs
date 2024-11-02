@@ -5,6 +5,7 @@ use proptest::prelude::*;
 use std::{
     collections::BTreeSet,
     fmt,
+    hash::{Hash, Hasher},
     num::NonZeroU32,
     ops::{BitAnd, BitOr, Not},
 };
@@ -269,7 +270,55 @@ impl CNF {
         }
     }
 
-    /// Remove tautologies, and detect conflicts
+    /// Propagate unit clauses
+    ///
+    /// ```rust
+    /// use cdcl::{CNF, lit};
+    ///
+    /// // x1 ∧ x2 ∧ (¬x1 ∨ x3) = x1 ∧ x2 ∧ x3
+    /// let mut expr = lit!(1) & lit!(2) & (lit!(-1) | lit!(3));
+    /// expr.unit_propagation().unwrap();
+    /// assert_eq!(expr, lit!(1) & lit!(2) & lit!(3));
+    /// ```
+    pub fn unit_propagation(&mut self) -> Result<(), DetectConflict> {
+        loop {
+            let hash = self.current_hash();
+            let Self::Valid(clauses) = self else {
+                return Err(DetectConflict);
+            };
+            let mut units = BTreeSet::new();
+            for clause in clauses {
+                if let Some(lit) = clause.as_unit() {
+                    units.insert(lit);
+                    continue;
+                }
+                for lit in units.iter() {
+                    clause.substitute(*lit);
+                    if clause.is_conflicted() {
+                        *self = Self::Conflicted;
+                        return Err(DetectConflict);
+                    }
+                }
+            }
+            self.cleanup()?;
+            self.sort_dedup()?;
+            self.detect_unit_conflict()?;
+            self.remove_implied_clauses()?;
+
+            if hash == self.current_hash() {
+                break;
+            }
+        }
+        Ok(())
+    }
+
+    fn current_hash(&self) -> u64 {
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        self.hash(&mut hasher);
+        hasher.finish()
+    }
+
+    /// Remove tautologies, and convert conflicting clauses to `CNF::Conflicted`
     fn cleanup(&mut self) -> Result<(), DetectConflict> {
         let Self::Valid(clauses) = self else {
             return Err(DetectConflict);
@@ -289,6 +338,7 @@ impl CNF {
         Ok(())
     }
 
+    /// Sort and dedup clauses
     fn sort_dedup(&mut self) -> Result<(), DetectConflict> {
         let Self::Valid(clauses) = self else {
             return Err(DetectConflict);
@@ -298,13 +348,12 @@ impl CNF {
         Ok(())
     }
 
-    fn normalize(&mut self) -> Result<(), DetectConflict> {
-        self.cleanup()?;
-        self.sort_dedup()?;
+    // Check for conflict e.g. (x1) ∧ (¬x1)
+    fn detect_unit_conflict(&mut self) -> Result<(), DetectConflict> {
         let Self::Valid(clauses) = self else {
             return Err(DetectConflict);
         };
-        // Check for conflict e.g. (x1) ∧ (¬x1)
+        // Assume clauses are already sorted
         for i in 1..clauses.len() {
             if clauses[i].num_literals() > 1 {
                 break;
@@ -316,8 +365,15 @@ impl CNF {
                 }
             }
         }
+        Ok(())
+    }
 
-        // Remove redundant clauses
+    /// Rmove redundant clauses, e.g. (x1 ∨ x2) ∧ (x1 ∨ x2 ∨ x3) = (x1 ∨ x2)
+    fn remove_implied_clauses(&mut self) -> Result<(), DetectConflict> {
+        let Self::Valid(clauses) = self else {
+            return Err(DetectConflict);
+        };
+        // Assumes clauses are sorted in graded lexical order, and antecedent is before consequent
         let mut i = 0;
         'outer: while i < clauses.len() {
             for j in 0..i {
@@ -328,6 +384,15 @@ impl CNF {
             }
             i += 1;
         }
+        Ok(())
+    }
+
+    fn normalize(&mut self) -> Result<(), DetectConflict> {
+        self.cleanup()?;
+        self.sort_dedup()?;
+        self.detect_unit_conflict()?;
+        self.remove_implied_clauses()?;
+        self.unit_propagation()?;
         Ok(())
     }
 }
