@@ -381,7 +381,7 @@ impl_bitor_inverse!(Literal, Clause);
 impl BitAnd for Clause {
     type Output = CNF;
     fn bitand(self, rhs: Self) -> Self::Output {
-        CNF::from(self) & CNF::from(rhs)
+        CNF::from_clauses(vec![self, rhs])
     }
 }
 
@@ -426,8 +426,12 @@ mod tests {
 
     proptest! {
         #[test]
-        fn test_commutative(a: Clause, b: Clause) {
+        fn test_commutative_or(a: Clause, b: Clause) {
             assert_eq!(a.clone() | b.clone(), b.clone() | a.clone());
+        }
+
+        #[test]
+        fn test_commutative_and(a: Clause, b: Clause) {
             assert_eq!(a.clone() & b.clone(), b.clone() & a.clone());
         }
 

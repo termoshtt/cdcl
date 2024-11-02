@@ -153,6 +153,10 @@ impl CNF {
         }
     }
 
+    pub fn is_conflicted(&self) -> bool {
+        matches!(self, Self::Conflicted)
+    }
+
     pub fn supp(&self) -> BTreeSet<NonZeroU32> {
         match self {
             Self::Valid(clauses) => clauses.iter().flat_map(Clause::supp).collect(),
@@ -227,6 +231,29 @@ impl CNF {
         }
     }
 
+    /// Add a clause to the expression
+    ///
+    /// ```rust
+    /// use cdcl::{CNF, Clause, lit};
+    ///
+    /// // x1 ∧ x2
+    /// let mut expr = lit!(1) & lit!(2);
+    /// expr.add_clause(lit!(3).into()).unwrap();
+    /// assert_eq!(expr, lit!(1) & lit!(2) & lit!(3));
+    ///
+    /// // Redundant clauses are not added, e.g. (x1 ∧ x2) ∧ (x1 ∨ x2) = x1 ∧ x2
+    /// let mut expr = lit!(1) & lit!(2);
+    /// expr.add_clause(lit!(1) | lit!(2)).unwrap();
+    /// assert_eq!(expr, lit!(1) & lit!(2));
+    ///
+    /// // Conflicting clauses are converted to CNF::Conflicted
+    /// let mut expr = lit!(1) & lit!(2);
+    /// assert!(expr.add_clause(Clause::Conflicted).is_err());
+    ///
+    /// // x1 ∧ ¬x1 = ⊥
+    /// let mut expr: CNF = lit!(1).into();
+    /// assert!(expr.add_clause(lit!(-1).into()).is_err());
+    /// ```
     pub fn add_clause(&mut self, clause: Clause) -> Result<(), DetectConflict> {
         let Self::Valid(clauses) = self else {
             return Err(DetectConflict);
