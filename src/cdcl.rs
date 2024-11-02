@@ -182,12 +182,12 @@ impl CDCL {
     }
 
     pub fn solve(&mut self, cancel: CancelToken) -> Cancelable<Solution> {
-        if let Some(solution) = self.expr.is_solved() {
-            return Ok(solution);
-        }
-        cancel.is_canceled()?;
-
         'cdcl: loop {
+            if let Some(solution) = self.expr.is_solved() {
+                return Ok(solution);
+            }
+            cancel.is_canceled()?;
+
             if let Some(mut conflict) = self.unit_propagation(cancel.clone())? {
                 // Backjump
                 for i in self.trail.current_level().implicated.iter().rev() {
