@@ -69,10 +69,10 @@ fn main() -> Result<()> {
 
     let args = Args::parse();
     let name = args.algorithm.clone();
-    let solver: TimeoutSolver = match name.as_str() {
-        "brute_force" => as_timeout_solver(brute_force),
-        "dpll" => as_timeout_solver(dpll),
-        "cdcl" => as_timeout_solver(cdcl),
+    let solver = match name.as_str() {
+        "brute_force" => |expr, timeout| Ok(block_on_timeout(brute_force(expr), timeout)?),
+        "dpll" => |expr, timeout| Ok(block_on_timeout(dpll(expr), timeout)?),
+        "cdcl" => |expr, timeout| Ok(block_on_timeout(cdcl(expr), timeout)?),
         _ => bail!("Unknown algorithm: {}", name),
     };
     let (title, digests) = args.digests()?;

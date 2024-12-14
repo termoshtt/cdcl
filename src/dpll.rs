@@ -1,26 +1,27 @@
-use crate::{take_minimal_id, CancelToken, Cancelable, Literal, Solution, State, CNF};
+use crate::{pending_once, take_minimal_id, Literal, Solution, State, CNF};
 
-pub fn dpll(mut input: CNF, cancel_token: CancelToken) -> Cancelable<Solution> {
+#[async_recursion::async_recursion]
+pub async fn dpll(mut input: CNF) -> Solution {
     let mut state = State::default();
 
     // Unit propagation
     loop {
-        cancel_token.is_canceled()?;
+        pending_once().await;
         let units = input.take_unit_clauses();
         if units.is_empty() {
             break;
         }
         for lit in units.into_iter() {
             if input.substitute(lit).is_err() {
-                return Ok(Solution::UnSat);
+                return Solution::UnSat;
             }
             state.insert(lit);
         }
     }
 
     match input.is_solved() {
-        Some(Solution::Sat(..)) => return Ok(Solution::Sat(state)),
-        Some(Solution::UnSat) => return Ok(Solution::UnSat),
+        Some(Solution::Sat(..)) => return Solution::Sat(state),
+        Some(Solution::UnSat) => return Solution::UnSat,
         _ => {}
     }
 
@@ -35,30 +36,27 @@ pub fn dpll(mut input: CNF, cancel_token: CancelToken) -> Cancelable<Solution> {
         if new.substitute(lit).is_err() {
             continue;
         }
-        match dpll(new, cancel_token.clone())? {
+        match dpll(new).await {
             Solution::Sat(mut sub_state) => {
                 state.append(&mut sub_state);
                 state.insert(lit);
-                return Ok(Solution::Sat(state));
+                return Solution::Sat(state);
             }
             Solution::UnSat => continue,
         }
     }
-    Ok(Solution::UnSat)
+    Solution::UnSat
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::block_on;
 
     #[test]
     fn test_dpll() {
         for (expr, expected) in crate::testing::single_solution_cases() {
-            assert_eq!(
-                dpll(expr.clone(), CancelToken::new()).unwrap(),
-                expected,
-                "Failed on {expr:?}",
-            );
+            assert_eq!(block_on(dpll(expr.clone())), expected, "Failed on {expr:?}",);
         }
     }
 }

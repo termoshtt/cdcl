@@ -1,10 +1,10 @@
-use crate::{CancelToken, Cancelable, Clause, Literal, Solution, CNF};
+use crate::{pending_once, Clause, Literal, Solution, CNF};
 use std::collections::BTreeSet;
 use std::num::NonZeroU32;
 
-pub fn cdcl(expr: CNF, token: CancelToken) -> Cancelable<Solution> {
+pub async fn cdcl(expr: CNF) -> Solution {
     let mut cdcl = CDCL::new(expr);
-    cdcl.solve(token)
+    cdcl.solve().await
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -157,7 +157,7 @@ impl CDCL {
     /// - A conflict clause is found. In this case, the conflict clause is returned. The solver should backjump.
     /// - All implications are resolved. In this case, `None` is returned. The solver should make a decision.
     ///
-    fn unit_propagation(&mut self, cancel: CancelToken) -> Cancelable<Option<Clause>> {
+    async fn unit_propagation(&mut self) -> Option<Clause> {
         let CNF::Valid(clauses) = &self.expr else {
             unreachable!("Start implication with conflicting CNF");
         };
@@ -165,10 +165,10 @@ impl CDCL {
             for clause in clauses {
                 let mut c = clause.clone();
                 for l in self.trail.literals() {
-                    cancel.is_canceled()?;
+                    pending_once().await;
                     c.substitute(*l);
                     if c.is_conflicted() {
-                        return Ok(Some(clause.clone()));
+                        return Some(clause.clone());
                     }
                 }
                 if let Some(lit) = c.as_unit() {
@@ -178,17 +178,17 @@ impl CDCL {
             }
             break;
         }
-        Ok(None)
+        None
     }
 
-    pub fn solve(&mut self, cancel: CancelToken) -> Cancelable<Solution> {
+    pub async fn solve(&mut self) -> Solution {
         'cdcl: loop {
             if let Some(solution) = self.expr.is_solved() {
-                return Ok(solution);
+                return solution;
             }
-            cancel.is_canceled()?;
+            pending_once().await;
 
-            if let Some(mut conflict) = self.unit_propagation(cancel.clone())? {
+            if let Some(mut conflict) = self.unit_propagation().await {
                 // Backjump
                 for i in self.trail.current_level().implicated.iter().rev() {
                     if let Ok(c) = conflict.clone().resolution(i.reason.clone()) {
@@ -199,7 +199,7 @@ impl CDCL {
                         }
                         if c.is_conflicted() {
                             // This means ⊥ can be derived from clauses
-                            return Ok(Solution::UnSat);
+                            return Solution::UnSat;
                         }
                         conflict = c;
                     }
@@ -223,12 +223,12 @@ impl CDCL {
                 );
                 self.trail.backjump(if n > 1 { levels[n - 2] } else { 0 });
                 if self.expr.add_clause(conflict).is_err() {
-                    return Ok(Solution::UnSat);
+                    return Solution::UnSat;
                 }
                 continue 'cdcl;
             }
             if let Some(solution) = self.make_decision() {
-                return Ok(solution);
+                return solution;
             }
         }
     }
@@ -237,7 +237,7 @@ impl CDCL {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{clause, lit};
+    use crate::{block_on, clause, lit};
 
     #[test]
     fn unit_propagation() {
@@ -248,7 +248,7 @@ mod tests {
         cdcl.make_decision();
         assert_eq!(cdcl.trail.decision_levels[1].decision, Some(lit!(1)));
 
-        let conflicted = cdcl.unit_propagation(CancelToken::new()).unwrap();
+        let conflicted = block_on(cdcl.unit_propagation());
         assert!(conflicted.is_none());
 
         assert_eq!(
@@ -284,7 +284,7 @@ mod tests {
 
         // Since clauses are scanned in order, [-1, 2] yields the x2 literal,
         // and then [-1, -2] yields a conflict
-        let conflicted = cdcl.unit_propagation(CancelToken::new()).unwrap();
+        let conflicted = block_on(cdcl.unit_propagation());
         assert_eq!(conflicted.unwrap(), clause![-1, -2]);
     }
 
@@ -292,7 +292,7 @@ mod tests {
     fn solve_single_solution_cases() {
         for (expr, expected) in crate::testing::single_solution_cases() {
             let mut cdcl = CDCL::new(expr);
-            let solution = cdcl.solve(CancelToken::new()).unwrap();
+            let solution = block_on(cdcl.solve());
             assert_eq!(solution, expected);
         }
     }
@@ -308,7 +308,7 @@ mod tests {
             & clause![3, -4];
 
         let mut cdcl = CDCL::new(expr);
-        let solution = cdcl.solve(CancelToken::new()).unwrap();
+        let solution = block_on(cdcl.solve());
         assert_eq!(solution, Solution::UnSat);
     }
 }
