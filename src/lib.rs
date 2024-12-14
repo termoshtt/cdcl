@@ -1,3 +1,5 @@
+#![feature(noop_waker)] // Waker::noop
+
 //! Toy Conflict-Driven Clause-Learning (CDCL) SAT solver for learning
 
 pub mod benchmark;
@@ -6,6 +8,7 @@ mod cdcl;
 mod dpll;
 mod expr;
 mod selector;
+mod timeout;
 
 #[cfg(test)]
 pub(crate) mod testing;
