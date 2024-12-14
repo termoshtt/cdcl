@@ -1,6 +1,7 @@
 use crate::{take_minimal_id, Literal, Solution, State, CNF};
 
-pub fn dpll(mut input: CNF) -> Solution {
+#[async_recursion::async_recursion]
+pub async fn dpll(mut input: CNF) -> Solution {
     let mut state = State::default();
 
     // Unit propagation
@@ -34,7 +35,7 @@ pub fn dpll(mut input: CNF) -> Solution {
         if new.substitute(lit).is_err() {
             continue;
         }
-        match dpll(new) {
+        match dpll(new).await {
             Solution::Sat(mut sub_state) => {
                 state.append(&mut sub_state);
                 state.insert(lit);
@@ -49,11 +50,12 @@ pub fn dpll(mut input: CNF) -> Solution {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::block_on;
 
     #[test]
     fn test_dpll() {
         for (expr, expected) in crate::testing::single_solution_cases() {
-            assert_eq!(dpll(expr.clone()), expected, "Failed on {expr:?}",);
+            assert_eq!(block_on(dpll(expr.clone())), expected, "Failed on {expr:?}",);
         }
     }
 }

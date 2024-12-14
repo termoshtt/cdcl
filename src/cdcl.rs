@@ -2,7 +2,7 @@ use crate::{Clause, Literal, Solution, CNF};
 use std::collections::BTreeSet;
 use std::num::NonZeroU32;
 
-pub fn cdcl(expr: CNF) -> Solution {
+pub async fn cdcl(expr: CNF) -> Solution {
     let mut cdcl = CDCL::new(expr);
     cdcl.solve()
 }

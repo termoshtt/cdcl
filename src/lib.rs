@@ -18,6 +18,7 @@ pub use cdcl::*;
 pub use dpll::*;
 pub use expr::*;
 pub use selector::*;
+pub use timeout::*;
 
 use std::collections::BTreeSet;
 

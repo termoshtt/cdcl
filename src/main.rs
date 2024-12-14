@@ -70,16 +70,16 @@ fn main() -> Result<()> {
     let args = Args::parse();
     let name = args.algorithm.clone();
     let solver = match name.as_str() {
-        "brute_force" => brute_force,
-        "dpll" => dpll,
-        "cdcl" => cdcl,
+        "brute_force" => |expr, timeout| Ok(block_on_timeout(brute_force(expr), timeout)?),
+        "dpll" => |expr, timeout| Ok(block_on_timeout(dpll(expr), timeout)?),
+        "cdcl" => |expr, timeout| Ok(block_on_timeout(cdcl(expr), timeout)?),
         _ => bail!("Unknown algorithm: {}", name),
     };
     let (title, digests) = args.digests()?;
 
     let report = cdcl::benchmark::benchmark(
         name.clone(),
-        |expr, timeout| todo!(),
+        solver,
         digests,
         Duration::from_secs(args.timeout_secs),
     )?;

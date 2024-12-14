@@ -30,9 +30,9 @@ pub fn pending_once() -> PendingOnce {
     PendingOnce::default()
 }
 
-pub fn call_with_timeout<T>(
-    timelimit: Duration,
+pub fn block_on_timeout<T>(
     f: impl Future<Output = T>,
+    timelimit: Duration,
 ) -> Result<T, TimeoutError> {
     let start = Instant::now();
     let mut boxed = Box::pin(f);
@@ -47,6 +47,18 @@ pub fn call_with_timeout<T>(
                     return Err(TimeoutError { elapsed });
                 }
             }
+        }
+    }
+}
+
+/// Block on a future until it resolves
+pub fn block_on<T>(f: impl Future<Output = T>) -> T {
+    let mut boxed = Box::pin(f);
+    let mut cx = Context::from_waker(Waker::noop());
+    loop {
+        match boxed.as_mut().poll(&mut cx) {
+            Poll::Ready(result) => return result,
+            _ => {}
         }
     }
 }
