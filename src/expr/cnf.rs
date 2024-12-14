@@ -566,7 +566,7 @@ impl Arbitrary for CNF {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{dpll, CancelToken};
+    use crate::dpll;
 
     proptest! {
         #[test]
@@ -593,7 +593,7 @@ mod tests {
             // since it is also a NP-hard problem
             // Instead, we can check it is UNSAT by DPLL.
             assert_eq!(
-                dpll(dbg!(a.clone() & dbg!(!a)), CancelToken::new()).unwrap(),
+                dpll(dbg!(a.clone() & dbg!(!a))),
                 Solution::UnSat
             );
         }

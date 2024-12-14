@@ -1,4 +1,4 @@
-use crate::{Canceled, Solution, TimeoutSolver, CNF};
+use crate::{Solution, CNF};
 use anyhow::Result;
 use rgbd::{Digest, SatResult};
 use serde::{Deserialize, Serialize};
@@ -30,7 +30,7 @@ impl Report {
 
 pub fn benchmark(
     solver_name: String,
-    solver: TimeoutSolver,
+    solver: impl Fn(CNF, Duration) -> Result<Solution>,
     digests: Vec<Digest>,
     timeout: Duration,
 ) -> Result<Report> {
@@ -89,7 +89,7 @@ pub fn benchmark(
                     result: "UNSAT".to_string(),
                 });
             }
-            Err(Canceled) => {
+            Err(_) => {
                 log::info!(
                     "{:<7} ({i}/{n}): {} (in {:?})",
                     "Timeout",

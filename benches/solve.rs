@@ -1,4 +1,4 @@
-use cdcl::{dpll, CancelToken, CNF};
+use cdcl::{dpll, CNF};
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 
 const DATASET: &[(&str, &str)] = &[
@@ -19,7 +19,7 @@ fn bench_dpll(c: &mut Criterion) {
         let expr = CNF::from_rgbd(rgbd::Digest::new(digest.to_string()).read().unwrap());
         group.bench_with_input(BenchmarkId::new("dpll", title), &expr, |b, expr| {
             b.iter(|| {
-                let _solution = dpll(expr.clone(), CancelToken::new()).unwrap();
+                let _solution = dpll(expr.clone());
             })
         });
     }

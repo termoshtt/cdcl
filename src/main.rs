@@ -69,17 +69,17 @@ fn main() -> Result<()> {
 
     let args = Args::parse();
     let name = args.algorithm.clone();
-    let solver: TimeoutSolver = match name.as_str() {
-        "brute_force" => as_timeout_solver(brute_force),
-        "dpll" => as_timeout_solver(dpll),
-        "cdcl" => as_timeout_solver(cdcl),
+    let solver = match name.as_str() {
+        "brute_force" => brute_force,
+        "dpll" => dpll,
+        "cdcl" => cdcl,
         _ => bail!("Unknown algorithm: {}", name),
     };
     let (title, digests) = args.digests()?;
 
     let report = cdcl::benchmark::benchmark(
         name.clone(),
-        solver,
+        |expr, timeout| todo!(),
         digests,
         Duration::from_secs(args.timeout_secs),
     )?;
