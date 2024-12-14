@@ -1,4 +1,4 @@
-use crate::{take_minimal_id, Literal, Solution, State, CNF};
+use crate::{pending_once, take_minimal_id, Literal, Solution, State, CNF};
 
 #[async_recursion::async_recursion]
 pub async fn dpll(mut input: CNF) -> Solution {
@@ -6,6 +6,7 @@ pub async fn dpll(mut input: CNF) -> Solution {
 
     // Unit propagation
     loop {
+        pending_once().await;
         let units = input.take_unit_clauses();
         if units.is_empty() {
             break;

@@ -1,4 +1,4 @@
-use crate::{take_minimal_id, Literal, Solution, CNF};
+use crate::{pending_once, take_minimal_id, Literal, Solution, CNF};
 
 pub struct BruteForce {}
 
@@ -7,6 +7,7 @@ pub async fn brute_force(input: CNF) -> Solution {
     if let Some(solution) = input.is_solved() {
         return solution;
     }
+    pending_once().await;
 
     let fix = take_minimal_id(&input);
     for value in [true, false] {
