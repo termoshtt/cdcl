@@ -56,10 +56,7 @@ pub fn block_on<T>(f: impl Future<Output = T>) -> T {
     let mut boxed = Box::pin(f);
     let mut cx = Context::from_waker(Waker::noop());
     loop {
-        match boxed.as_mut().poll(&mut cx) {
-            Poll::Ready(result) => return result,
-            _ => {}
-        }
+        if let Poll::Ready(result) = boxed.as_mut().poll(&mut cx) { return result }
     }
 }
 
