@@ -1,6 +1,5 @@
 ---
 source: src/cdcl.rs
-assertion_line: 353
 description: 7e19f295d35c30ac4d5386ffec1fcf28
 expression: cdcl.trail.to_string()
 snapshot_kind: text

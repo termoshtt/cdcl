@@ -4,6 +4,9 @@ target/
 # proptest
 proptest-regressions/
 
+# insta
+*.snap.new
+
 # Python
 .venv/
 
