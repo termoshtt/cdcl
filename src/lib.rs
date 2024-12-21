@@ -50,4 +50,12 @@ impl Solution {
             _ => None,
         }
     }
+
+    pub fn is_sat(&self) -> bool {
+        matches!(self, Solution::Sat(..))
+    }
+
+    pub fn is_unsat(&self) -> bool {
+        matches!(self, Solution::UnSat)
+    }
 }

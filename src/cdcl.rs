@@ -1,6 +1,5 @@
 use crate::{pending_once, Clause, Literal, Solution, CNF};
-use std::collections::BTreeSet;
-use std::num::NonZeroU32;
+use std::{collections::BTreeSet, fmt, num::NonZeroU32};
 
 pub async fn cdcl(expr: CNF) -> Solution {
     let mut cdcl = CDCL::new(expr);
@@ -56,9 +55,46 @@ struct Implicated {
     reason: Clause,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub struct Trail {
     decision_levels: Vec<DecisionLevel>,
+}
+
+impl fmt::Display for Trail {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Debug::fmt(self, f)
+    }
+}
+
+impl fmt::Debug for Trail {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let level_width = self.decision_levels.len().to_string().len();
+        let supp = self.supp();
+        let Some(max_id) = supp.last() else {
+            // No output for empty trail
+            return Ok(());
+        };
+        let literal_width = max_id.to_string().len() + 2;
+
+        for (i, level) in self.decision_levels.iter().enumerate() {
+            if let Some(decision) = &level.decision {
+                writeln!(
+                    f,
+                    "{:>literal_width$} | {i:>level_width$} | Λ",
+                    decision.to_string()
+                )?;
+            }
+            for imp in &level.implicated {
+                writeln!(
+                    f,
+                    "{:>literal_width$} | {i:>level_width$} | {}",
+                    imp.literal.to_string(),
+                    imp.reason
+                )?;
+            }
+        }
+        Ok(())
+    }
 }
 
 impl Default for Trail {
@@ -251,26 +287,12 @@ mod tests {
         let conflicted = block_on(cdcl.unit_propagation());
         assert!(conflicted.is_none());
 
-        assert_eq!(
-            cdcl.trail.decision_levels[1],
-            DecisionLevel {
-                decision: Some(lit!(1)),
-                implicated: vec![
-                    Implicated {
-                        literal: lit!(2),
-                        reason: clause![-1, 2]
-                    },
-                    Implicated {
-                        literal: lit!(3),
-                        reason: clause![-2, 3]
-                    },
-                    Implicated {
-                        literal: lit!(4),
-                        reason: clause![-3, 4]
-                    }
-                ],
-            }
-        );
+        insta::assert_snapshot!(cdcl.trail.to_string(), @r###"
+        x1 | 1 | Λ
+        x2 | 1 | ¬x1 ∨ x2
+        x3 | 1 | ¬x2 ∨ x3
+        x4 | 1 | ¬x3 ∨ x4
+        "###);
     }
 
     #[test]
@@ -286,6 +308,11 @@ mod tests {
         // and then [-1, -2] yields a conflict
         let conflicted = block_on(cdcl.unit_propagation());
         assert_eq!(conflicted.unwrap(), clause![-1, -2]);
+
+        insta::assert_snapshot!(cdcl.trail.to_string(), @r"
+        x1 | 1 | Λ
+        x2 | 1 | ¬x1 ∨ x2
+        ");
     }
 
     #[test]
@@ -310,5 +337,43 @@ mod tests {
         let mut cdcl = CDCL::new(expr);
         let solution = block_on(cdcl.solve());
         assert_eq!(solution, Solution::UnSat);
+    }
+
+    #[test]
+    fn test_cdcl_solve_sat() {
+        let sat_digests = ["7e19f295d35c30ac4d5386ffec1fcf28"];
+        for digest in sat_digests {
+            let expr = CNF::from_rgbd(rgbd::Digest::new(digest.to_string()).read().unwrap());
+            let mut cdcl = CDCL::new(expr);
+            let solution = block_on(cdcl.solve());
+            assert!(solution.is_sat());
+            insta::with_settings!({
+                description => digest,
+            }, {
+                insta::assert_snapshot!(cdcl.trail.to_string());
+            });
+        }
+    }
+
+    #[test]
+    fn test_cdcl_solve_unsat() {
+        let unsat_digests = [
+            "2b738a1991a7318cad993a809b10cc2c",
+            "18f54820956791d3028868b56a09c6cd",
+            "00f969737ba4338bd233cd3ed249bd55",
+            "38de0de52a209b6d0beb50986fd8b506",
+            "04e47e6635908600ef3938b32644825a",
+        ];
+        for digest in unsat_digests {
+            let expr = CNF::from_rgbd(rgbd::Digest::new(digest.to_string()).read().unwrap());
+            let mut cdcl = CDCL::new(expr);
+            let solution = block_on(cdcl.solve());
+            assert!(solution.is_unsat());
+            insta::with_settings!({
+                description => digest,
+            }, {
+                insta::assert_snapshot!(cdcl.trail.to_string());
+            });
+        }
     }
 }

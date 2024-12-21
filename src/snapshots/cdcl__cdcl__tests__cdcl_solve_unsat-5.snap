@@ -1,0 +1,19 @@
+---
+source: src/cdcl.rs
+description: 04e47e6635908600ef3938b32644825a
+expression: cdcl.trail.to_string()
+snapshot_kind: text
+---
+  x3 | 0 | x3
+  x8 | 0 | x8
+ x22 | 0 | x22
+ x23 | 0 | x23
+ x26 | 0 | x26
+¬x28 | 0 | ¬x28
+ ¬x1 | 0 | ¬x1
+ x32 | 0 | x32
+ x33 | 0 | x33
+ x13 | 0 | x13
+ x24 | 0 | x24
+ x38 | 0 | x38
+ x15 | 0 | x15
