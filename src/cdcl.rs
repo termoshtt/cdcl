@@ -1,6 +1,5 @@
 use crate::{pending_once, Clause, Literal, Solution, CNF};
-use std::collections::BTreeSet;
-use std::num::NonZeroU32;
+use std::{collections::BTreeSet, fmt, num::NonZeroU32};
 
 pub async fn cdcl(expr: CNF) -> Solution {
     let mut cdcl = CDCL::new(expr);
@@ -59,6 +58,37 @@ struct Implicated {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Trail {
     decision_levels: Vec<DecisionLevel>,
+}
+
+impl fmt::Display for Trail {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let level_width = self.decision_levels.len().to_string().len();
+        let supp = self.supp();
+        let Some(max_id) = supp.last() else {
+            // No output for empty trail
+            return Ok(());
+        };
+        let literal_width = max_id.to_string().len() + 2;
+
+        for (i, level) in self.decision_levels.iter().enumerate() {
+            if let Some(decision) = &level.decision {
+                writeln!(
+                    f,
+                    "{:>literal_width$} | {i:>level_width$} | Λ",
+                    decision.to_string()
+                )?;
+            }
+            for imp in &level.implicated {
+                writeln!(
+                    f,
+                    "{:>literal_width$} | {i:>level_width$} | {}",
+                    imp.literal.to_string(),
+                    imp.reason
+                )?;
+            }
+        }
+        Ok(())
+    }
 }
 
 impl Default for Trail {
@@ -251,26 +281,12 @@ mod tests {
         let conflicted = block_on(cdcl.unit_propagation());
         assert!(conflicted.is_none());
 
-        assert_eq!(
-            cdcl.trail.decision_levels[1],
-            DecisionLevel {
-                decision: Some(lit!(1)),
-                implicated: vec![
-                    Implicated {
-                        literal: lit!(2),
-                        reason: clause![-1, 2]
-                    },
-                    Implicated {
-                        literal: lit!(3),
-                        reason: clause![-2, 3]
-                    },
-                    Implicated {
-                        literal: lit!(4),
-                        reason: clause![-3, 4]
-                    }
-                ],
-            }
-        );
+        insta::assert_snapshot!(cdcl.trail.to_string(), @r###"
+        x1 | 1 | Λ
+        x2 | 1 | ¬x1 ∨ x2
+        x3 | 1 | ¬x2 ∨ x3
+        x4 | 1 | ¬x3 ∨ x4
+        "###);
     }
 
     #[test]
@@ -286,6 +302,11 @@ mod tests {
         // and then [-1, -2] yields a conflict
         let conflicted = block_on(cdcl.unit_propagation());
         assert_eq!(conflicted.unwrap(), clause![-1, -2]);
+
+        insta::assert_snapshot!(cdcl.trail.to_string(), @r"
+        x1 | 1 | Λ
+        x2 | 1 | ¬x1 ∨ x2
+        ");
     }
 
     #[test]

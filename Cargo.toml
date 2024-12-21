@@ -18,6 +18,7 @@ serde_json = "1.0.133"
 
 [dev-dependencies]
 criterion = { version = "2.7.2", package = "codspeed-criterion-compat" }
+insta = "1.41.1"
 
 [[bench]]
 name = "solve"
