@@ -55,12 +55,18 @@ struct Implicated {
     reason: Clause,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub struct Trail {
     decision_levels: Vec<DecisionLevel>,
 }
 
 impl fmt::Display for Trail {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Debug::fmt(self, f)
+    }
+}
+
+impl fmt::Debug for Trail {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let level_width = self.decision_levels.len().to_string().len();
         let supp = self.supp();
