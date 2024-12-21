@@ -354,4 +354,26 @@ mod tests {
             });
         }
     }
+
+    #[test]
+    fn test_cdcl_solve_unsat() {
+        let unsat_digests = [
+            "2b738a1991a7318cad993a809b10cc2c",
+            "18f54820956791d3028868b56a09c6cd",
+            "00f969737ba4338bd233cd3ed249bd55",
+            "38de0de52a209b6d0beb50986fd8b506",
+            "04e47e6635908600ef3938b32644825a",
+        ];
+        for digest in unsat_digests {
+            let expr = CNF::from_rgbd(rgbd::Digest::new(digest.to_string()).read().unwrap());
+            let mut cdcl = CDCL::new(expr);
+            let solution = block_on(cdcl.solve());
+            assert!(solution.is_unsat());
+            insta::with_settings!({
+                description => digest,
+            }, {
+                insta::assert_snapshot!(cdcl.trail.to_string());
+            });
+        }
+    }
 }
