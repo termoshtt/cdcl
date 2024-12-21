@@ -338,4 +338,20 @@ mod tests {
         let solution = block_on(cdcl.solve());
         assert_eq!(solution, Solution::UnSat);
     }
+
+    #[test]
+    fn test_cdcl_solve_sat() {
+        let sat_digests = ["7e19f295d35c30ac4d5386ffec1fcf28"];
+        for digest in sat_digests {
+            let expr = CNF::from_rgbd(rgbd::Digest::new(digest.to_string()).read().unwrap());
+            let mut cdcl = CDCL::new(expr);
+            let solution = block_on(cdcl.solve());
+            assert!(solution.is_sat());
+            insta::with_settings!({
+                description => digest,
+            }, {
+                insta::assert_snapshot!(cdcl.trail.to_string());
+            });
+        }
+    }
 }
