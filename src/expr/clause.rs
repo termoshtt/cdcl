@@ -80,7 +80,6 @@ impl Clause {
     /// ```
     pub fn from_dimacs(s: &str) -> Self {
         let literals: BTreeSet<Literal> = s
-            .trim()
             .split_whitespace()
             .filter_map(|s| s.parse::<i32>().ok())
             .take_while(|&i| i != 0)
