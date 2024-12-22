@@ -68,7 +68,7 @@ pub fn benchmark(
                     result: "SAT".to_string(),
                 });
             }
-            Ok(Solution::UnSat) => {
+            Ok(Solution::UnSat | Solution::UnSatWithProof(_)) => {
                 log::info!(
                     "{:<7} ({i}/{n}): {} is UNSAT (in {:?})",
                     "Solved",
