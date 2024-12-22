@@ -71,6 +71,14 @@ impl Literal {
             }
         }
     }
+
+    pub fn as_i32(&self) -> i32 {
+        if self.positive {
+            self.id.get() as i32
+        } else {
+            -(self.id.get() as i32)
+        }
+    }
 }
 
 impl From<i32> for Literal {
