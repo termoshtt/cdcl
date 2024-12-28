@@ -1,19 +1,19 @@
 ---
 source: src/cdcl.rs
-description: 04e47e6635908600ef3938b32644825a
+description: 00f969737ba4338bd233cd3ed249bd55
 expression: cdcl.trail.to_string()
 snapshot_kind: text
 ---
-  x3 | 0 | x3
-  x8 | 0 | x8
- x22 | 0 | x22
- x23 | 0 | x23
- x26 | 0 | x26
+ ¬x4 | 0 | ¬x4
+  x6 | 0 | x6
+ x11 | 0 | x11
+ x21 | 0 | x21
 ¬x28 | 0 | ¬x28
- ¬x1 | 0 | ¬x1
- x32 | 0 | x32
- x33 | 0 | x33
- x13 | 0 | x13
+ x39 | 0 | x39
+ ¬x2 | 0 | ¬x2
  x24 | 0 | x24
- x38 | 0 | x38
- x15 | 0 | x15
+  x7 | 0 | x7
+ x25 | 0 | x25
+¬x17 | 0 | ¬x17
+¬x22 | 0 | ¬x22
+ x12 | 0 | x12

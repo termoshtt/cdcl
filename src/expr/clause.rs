@@ -67,6 +67,65 @@ impl Ord for Clause {
 }
 
 impl Clause {
+    /// Parse a clause from a DIMACS format string
+    ///
+    /// ```rust
+    /// use cdcl::Clause;
+    /// let clause = Clause::from_dimacs("1 2 0");
+    /// assert_eq!(clause.to_string(), "x1 ∨ x2");
+    ///
+    /// // Empty clause means a conflict
+    /// let clause = Clause::from_dimacs("0");
+    /// assert_eq!(clause.to_string(), "⊥");
+    /// ```
+    pub fn from_dimacs(s: &str) -> Self {
+        let literals: BTreeSet<Literal> = s
+            .split_whitespace()
+            .filter_map(|s| s.parse::<i32>().ok())
+            .take_while(|&i| i != 0)
+            .map(Literal::new)
+            .collect();
+        if literals.is_empty() {
+            Self::Conflicted
+        } else {
+            Self::new(literals)
+        }
+    }
+
+    /// Convert the clause to a DIMACS format string
+    ///
+    /// ```rust
+    /// use cdcl::Clause;
+    /// let clause = Clause::from_dimacs("1 2 0");
+    /// assert_eq!(clause.as_dimacs().unwrap(), "1 2 0");
+    ///
+    /// // Empty clause means a conflict
+    /// let clause = Clause::conflicted();
+    /// assert_eq!(clause.as_dimacs().unwrap(), "0");
+    ///
+    /// // Tautology cannot be converted
+    /// let clause = Clause::tautology();
+    /// assert!(clause.as_dimacs().is_err());
+    /// ```
+    pub fn as_dimacs(&self) -> Result<String> {
+        match self {
+            Self::Valid { literals } => {
+                if literals.is_empty() {
+                    bail!("Tautology cannot be converted to DIMACS format");
+                }
+                let mut s = String::new();
+                for lit in literals {
+                    s.push_str(&lit.as_i32().to_string());
+                    s.push(' ');
+                }
+                s.push('0');
+                Ok(s)
+            }
+            // Empty clause `0` corresponds to a conflict
+            Self::Conflicted => Ok("0".to_string()),
+        }
+    }
+
     pub fn literals(&self) -> Option<impl Iterator<Item = &Literal>> {
         match self {
             Self::Valid { literals } => Some(literals.iter()),
@@ -194,6 +253,10 @@ impl Clause {
         Self::Valid {
             literals: BTreeSet::new(),
         }
+    }
+
+    pub fn conflicted() -> Self {
+        Self::Conflicted
     }
 
     pub fn as_unit(&self) -> Option<Literal> {

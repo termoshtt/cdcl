@@ -7,6 +7,7 @@ mod brute_force;
 mod cdcl;
 mod dpll;
 mod expr;
+mod resolution_trace;
 mod selector;
 mod timeout;
 
@@ -17,6 +18,7 @@ pub use brute_force::*;
 pub use cdcl::*;
 pub use dpll::*;
 pub use expr::*;
+pub use resolution_trace::*;
 pub use selector::*;
 pub use timeout::*;
 
@@ -39,8 +41,10 @@ macro_rules! state {
 pub enum Solution {
     /// Find a satisfying assignment
     Sat(State),
-    /// Prove unsatisfiability
+    /// Prove unsatisfiability without certificate
     UnSat,
+    /// Prove unsatisfiability with resolution trace for DRAT proof
+    UnSatWithProof(ResolutionTrace),
 }
 
 impl Solution {
@@ -56,6 +60,6 @@ impl Solution {
     }
 
     pub fn is_unsat(&self) -> bool {
-        matches!(self, Solution::UnSat)
+        matches!(self, Solution::UnSat | Solution::UnSatWithProof(..))
     }
 }

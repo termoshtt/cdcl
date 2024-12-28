@@ -42,7 +42,7 @@ pub async fn dpll(mut input: CNF) -> Solution {
                 state.insert(lit);
                 return Solution::Sat(state);
             }
-            Solution::UnSat => continue,
+            _ => continue,
         }
     }
     Solution::UnSat
