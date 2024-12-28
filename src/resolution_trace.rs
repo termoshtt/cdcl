@@ -10,8 +10,8 @@ pub enum ResolutionTraceEntry {
 impl fmt::Display for ResolutionTraceEntry {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ResolutionTraceEntry::Append(clause) => write!(f, "{}", clause),
-            ResolutionTraceEntry::Delete(clause) => write!(f, "d {}", clause),
+            ResolutionTraceEntry::Append(clause) => write!(f, "{}", clause.as_dimacs().unwrap()),
+            ResolutionTraceEntry::Delete(clause) => write!(f, "d {}", clause.as_dimacs().unwrap()),
         }
     }
 }
@@ -26,5 +26,14 @@ impl ResolutionTrace {
 
     pub fn delete(&mut self, clause: Clause) {
         self.0.push(ResolutionTraceEntry::Delete(clause));
+    }
+}
+
+impl fmt::Display for ResolutionTrace {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for entry in &self.0 {
+            writeln!(f, "{}", entry)?;
+        }
+        Ok(())
     }
 }

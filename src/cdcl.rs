@@ -1,4 +1,4 @@
-use crate::{pending_once, Clause, Literal, Solution, CNF};
+use crate::{pending_once, Clause, Literal, ResolutionTrace, Solution, CNF};
 use std::{collections::BTreeSet, fmt, num::NonZeroU32};
 
 pub async fn cdcl(expr: CNF) -> Solution {
@@ -218,9 +218,14 @@ impl CDCL {
     }
 
     pub async fn solve(&mut self) -> Solution {
+        let mut proof = ResolutionTrace::default();
         'cdcl: loop {
             if let Some(solution) = self.expr.is_solved() {
-                return solution;
+                if let Solution::UnSat = solution {
+                    return Solution::UnSatWithProof(proof);
+                } else {
+                    return solution;
+                }
             }
             pending_once().await;
 
@@ -235,7 +240,7 @@ impl CDCL {
                         }
                         if c.is_conflicted() {
                             // This means ⊥ can be derived from clauses
-                            return Solution::UnSat;
+                            return Solution::UnSatWithProof(proof);
                         }
                         conflict = c;
                     }
@@ -258,8 +263,9 @@ impl CDCL {
                     "Conflict clause must have one literal from the current decision level"
                 );
                 self.trail.backjump(if n > 1 { levels[n - 2] } else { 0 });
+                proof.append(conflict.clone());
                 if self.expr.add_clause(conflict).is_err() {
-                    return Solution::UnSat;
+                    return Solution::UnSatWithProof(proof);
                 }
                 continue 'cdcl;
             }
@@ -320,7 +326,11 @@ mod tests {
         for (expr, expected) in crate::testing::single_solution_cases() {
             let mut cdcl = CDCL::new(expr);
             let solution = block_on(cdcl.solve());
-            assert_eq!(solution, expected);
+            if expected.is_unsat() {
+                assert!(solution.is_unsat());
+            } else {
+                assert_eq!(solution, expected);
+            }
         }
     }
 
@@ -336,7 +346,7 @@ mod tests {
 
         let mut cdcl = CDCL::new(expr);
         let solution = block_on(cdcl.solve());
-        assert_eq!(solution, Solution::UnSat);
+        assert!(solution.is_unsat());
     }
 
     #[test]
@@ -368,11 +378,14 @@ mod tests {
             let expr = CNF::from_rgbd(rgbd::Digest::new(digest.to_string()).read().unwrap());
             let mut cdcl = CDCL::new(expr);
             let solution = block_on(cdcl.solve());
-            assert!(solution.is_unsat());
+            let Solution::UnSatWithProof(proof) = solution else {
+                panic!("Expected UnSatWithProof, got {:?}", solution);
+            };
             insta::with_settings!({
                 description => digest,
             }, {
                 insta::assert_snapshot!(cdcl.trail.to_string());
+                insta::assert_snapshot!(proof.to_string());
             });
         }
     }

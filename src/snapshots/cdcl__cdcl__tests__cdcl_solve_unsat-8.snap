@@ -1,0 +1,13 @@
+---
+source: src/cdcl.rs
+description: 38de0de52a209b6d0beb50986fd8b506
+expression: proof.to_string()
+snapshot_kind: text
+---
+-1 -4 -12 19 -22 0
+-3 -8 -9 -10 28 0
+-9 10 -11 28 29 0
+-3 -8 -9 0
+-3 -8 -10 -15 0
+-5 12 37 0
+-1 -4 19 0
