@@ -1,4 +1,4 @@
-use cdcl::{block_on, dpll, CNF};
+use cdcl::{block_on, cdcl, dpll, CNF};
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 
 const DATASET: &[(&str, &str)] = &[
@@ -25,5 +25,20 @@ fn bench_dpll(c: &mut Criterion) {
     }
 }
 
-criterion_group!(benches, bench_dpll);
+fn bench_cdcl(c: &mut Criterion) {
+    let mut group = c.benchmark_group("cdcl");
+    for (title, digest) in DATASET {
+        if title.starts_with("sat") {
+            continue;
+        }
+        let expr = CNF::from_rgbd(rgbd::Digest::new(digest.to_string()).read().unwrap());
+        group.bench_with_input(BenchmarkId::new("cdcl", title), &expr, |b, expr| {
+            b.iter(|| {
+                let _solution = block_on(cdcl(expr.clone()));
+            })
+        });
+    }
+}
+
+criterion_group!(benches, bench_dpll, bench_cdcl);
 criterion_main!(benches);
