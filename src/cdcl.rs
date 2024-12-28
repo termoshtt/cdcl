@@ -234,6 +234,7 @@ impl CDCL {
                 for i in self.trail.current_level().implicated.iter().rev() {
                     if let Ok(c) = conflict.clone().resolution(i.reason.clone()) {
                         if let Some(lit) = c.as_unit() {
+                            proof.append(c);
                             self.expr = self.expr.clone() & lit;
                             self.trail.backjump(0);
                             continue 'cdcl;
@@ -346,7 +347,10 @@ mod tests {
 
         let mut cdcl = CDCL::new(expr);
         let solution = block_on(cdcl.solve());
-        assert!(solution.is_unsat());
+        let Solution::UnSatWithProof(proof) = solution else {
+            panic!("Expected UnSatWithProof, got {:?}", solution);
+        };
+        insta::assert_snapshot!(proof.to_string(), @"-1 0");
     }
 
     #[test]
