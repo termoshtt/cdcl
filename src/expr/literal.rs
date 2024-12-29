@@ -230,14 +230,14 @@ mod tests {
 
         #[test]
         fn test_distributivity(a: Literal, b: Literal, c: Literal) {
-            assert_eq!(a & (b | c), (a & b) | (a & c));
-            assert_eq!(a | (b & c), (a | b) & (a | c));
+            prop_assert_eq!(a & (b | c), (a & b) | (a & c));
+            prop_assert_eq!(a | (b & c), (a | b) & (a | c));
         }
 
         #[test]
         fn test_absorption(a: Literal, b: Literal) {
-            prop_assert!((a & (a | b)).normalized_eq(a));
-            prop_assert!((a | (a & b)).normalized_eq(a));
+            prop_assert_eq!(a & (a | b), a);
+            prop_assert_eq!(a | (a & b), a);
         }
     }
 }

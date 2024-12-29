@@ -269,7 +269,7 @@ impl CNF {
             }
         }
         clauses.push(clause);
-        Ok(())
+        self.cleanup()
     }
 
     /// List up all unit clauses, single variable or its negation, as a [State] with remaining clauses as a new [CNF]
