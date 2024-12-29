@@ -350,7 +350,7 @@ impl CNF {
     }
 
     /// Remove tautologies, and convert conflicting clauses to `CNF::Conflicted`
-    pub fn cleanup(&mut self) -> Result<(), DetectConflict> {
+    fn cleanup(&mut self) -> Result<(), DetectConflict> {
         let Self::Valid(clauses) = self else {
             return Err(DetectConflict);
         };
@@ -370,7 +370,7 @@ impl CNF {
     }
 
     /// Sort and dedup clauses
-    pub fn sort_dedup(&mut self) -> Result<(), DetectConflict> {
+    fn sort_dedup(&mut self) -> Result<(), DetectConflict> {
         let Self::Valid(clauses) = self else {
             return Err(DetectConflict);
         };
@@ -380,7 +380,7 @@ impl CNF {
     }
 
     // Check for conflict e.g. (x1) ∧ (¬x1)
-    pub fn detect_unit_conflict(&mut self) -> Result<(), DetectConflict> {
+    fn detect_unit_conflict(&mut self) -> Result<(), DetectConflict> {
         let Self::Valid(clauses) = self else {
             return Err(DetectConflict);
         };
@@ -400,7 +400,7 @@ impl CNF {
     }
 
     /// Remove redundant clauses, e.g. (x1 ∨ x2) ∧ (x1 ∨ x2 ∨ x3) = (x1 ∨ x2)
-    pub fn remove_implied_clauses(&mut self) -> Result<(), DetectConflict> {
+    fn remove_implied_clauses(&mut self) -> Result<(), DetectConflict> {
         let Self::Valid(clauses) = self else {
             return Err(DetectConflict);
         };

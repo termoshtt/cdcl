@@ -514,7 +514,8 @@ mod tests {
 
         #[test]
         fn test_conflict(a: Clause) {
-            assert_eq!(a.clone() & !a, Clause::Conflicted)
+            let mut x = a.clone() & !a;
+            assert!(x.normalize().is_err());
         }
 
         #[test]
