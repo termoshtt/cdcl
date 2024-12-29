@@ -610,13 +610,13 @@ mod tests {
 
         #[test]
         fn test_distributivity(a: CNF, b: CNF, c: CNF) {
-            assert_eq!(a.clone() & (b.clone() | c.clone()), (a.clone() & b.clone()) | (a.clone() & c.clone()));
-            assert_eq!(a.clone() | (b.clone() & c.clone()), (a.clone() | b.clone()) & (a.clone() | c.clone()));
+            prop_assert!((a.clone() & (b.clone() | c.clone())).normalized_eq((a.clone() & b.clone()) | (a.clone() & c.clone())));
+            prop_assert!((a.clone() | (b.clone() & c.clone())).normalized_eq((a.clone() | b.clone()) & (a.clone() | c.clone())));
         }
 
         #[test]
         fn test_absorption_or(a: CNF, b: CNF) {
-            assert_eq!(a.clone() | (a.clone() & b.clone()), a.clone());
+            prop_assert!((a.clone() | (a.clone() & b.clone())).normalized_eq(a));
         }
 
         #[test]

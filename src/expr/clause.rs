@@ -514,8 +514,7 @@ mod tests {
 
         #[test]
         fn test_conflict(a: Clause) {
-            let mut x = a.clone() & !a;
-            assert!(x.normalize().is_err());
+            prop_assert!((a.clone() & !a).normalize().is_err());
         }
 
         #[test]
