@@ -188,7 +188,7 @@ impl CNF {
                 return Err(DetectConflict);
             }
         }
-        Ok(())
+        self.cleanup()
     }
 
     pub fn evaluate(&mut self, state: &State) -> bool {
@@ -332,8 +332,6 @@ impl CNF {
                 }
             }
             self.cleanup()?;
-            self.sort_dedup()?;
-            self.detect_unit_conflict()?;
             self.remove_implied_clauses()?;
 
             if hash == self.current_hash() {
@@ -349,7 +347,13 @@ impl CNF {
         hasher.finish()
     }
 
-    /// Remove tautologies, and convert conflicting clauses to `CNF::Conflicted`
+    /// Fast cleanup. For full cleanup, use `normalize` instead
+    ///
+    /// - Remove tautologies
+    /// - Convert conflicting clauses to `CNF::Conflicted`
+    /// - Sort and dedup clauses
+    /// - Detect unit conflict
+    ///
     fn cleanup(&mut self) -> Result<(), DetectConflict> {
         let Self::Valid(clauses) = self else {
             return Err(DetectConflict);
@@ -366,25 +370,11 @@ impl CNF {
             }
             i += 1;
         }
-        Ok(())
-    }
 
-    /// Sort and dedup clauses
-    fn sort_dedup(&mut self) -> Result<(), DetectConflict> {
-        let Self::Valid(clauses) = self else {
-            return Err(DetectConflict);
-        };
         clauses.sort_unstable();
         clauses.dedup();
-        Ok(())
-    }
 
-    // Check for conflict e.g. (x1) ∧ (¬x1)
-    fn detect_unit_conflict(&mut self) -> Result<(), DetectConflict> {
-        let Self::Valid(clauses) = self else {
-            return Err(DetectConflict);
-        };
-        // Assume clauses are already sorted
+        // Detect unit conflict
         for i in 1..clauses.len() {
             if clauses[i].num_literals() > 1 {
                 break;
@@ -396,6 +386,7 @@ impl CNF {
                 }
             }
         }
+
         Ok(())
     }
 
@@ -420,8 +411,6 @@ impl CNF {
 
     pub fn normalize(&mut self) -> Result<(), DetectConflict> {
         self.cleanup()?;
-        self.sort_dedup()?;
-        self.detect_unit_conflict()?;
         self.remove_implied_clauses()?;
         self.unit_propagation()?;
         Ok(())
