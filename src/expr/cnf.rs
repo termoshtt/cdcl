@@ -426,6 +426,16 @@ impl CNF {
         self.unit_propagation()?;
         Ok(())
     }
+
+    pub fn normalized_eq(&self, other: impl Into<Self>) -> bool {
+        let mut a = self.clone();
+        let mut b = other.into();
+        match (a.normalize(), b.normalize()) {
+            (Ok(()), Ok(())) => a == b,
+            (Err(_), Err(_)) => true,
+            _ => false,
+        }
+    }
 }
 
 impl fmt::Debug for CNF {
