@@ -236,8 +236,12 @@ mod tests {
 
         #[test]
         fn test_absorption(a: Literal, b: Literal) {
-            assert_eq!(a | (a & b), a);
-            assert_eq!(a & (a | b), a);
+            let mut x = a | (a & b);
+            let mut y = a & (a | b);
+            x.normalize().unwrap();
+            y.normalize().unwrap();
+            assert_eq!(x, a);
+            assert_eq!(y, a);
         }
     }
 }

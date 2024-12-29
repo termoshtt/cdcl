@@ -540,8 +540,18 @@ mod tests {
 
         #[test]
         fn test_absorption(a: Clause, b: Clause) {
-            assert_eq!(a.clone() | (a.clone() & b.clone()), a.clone());
-            assert_eq!(a.clone() & (a.clone() | b.clone()), a.clone());
+            let mut x = a.clone() | (a.clone() & b.clone());
+            let mut y = a.clone() & (a.clone() | b.clone());
+
+            if a.is_conflicted() {
+                assert!(x.normalize().is_err());
+                assert!(y.normalize().is_err());
+            } else {
+                x.normalize().unwrap();
+                y.normalize().unwrap();
+                assert_eq!(x, a);
+                assert_eq!(y, a);
+            }
         }
     }
 }
