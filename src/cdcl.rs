@@ -199,9 +199,9 @@ impl CDCL {
         };
         'unit_propagation: loop {
             for clause in clauses {
+                pending_once().await;
                 let mut c = clause.clone();
                 for l in self.trail.literals() {
-                    pending_once().await;
                     c.substitute(*l);
                     if c.is_conflicted() {
                         return Some(clause.clone());
