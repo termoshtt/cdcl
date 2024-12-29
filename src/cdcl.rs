@@ -230,6 +230,10 @@ impl CDCL {
             pending_once().await;
 
             if let Some(mut conflict) = self.unit_propagation().await {
+                // Conflict in zero level means unsatisfiable
+                if self.trail.level() == 0 {
+                    return Solution::UnSatWithProof(proof);
+                }
                 // Backjump
                 for i in self.trail.current_level().implicated.iter().rev() {
                     if let Ok(c) = conflict.clone().resolution(i.reason.clone()) {

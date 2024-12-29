@@ -188,7 +188,7 @@ impl CNF {
                 return Err(DetectConflict);
             }
         }
-        self.normalize()
+        self.cleanup()
     }
 
     pub fn evaluate(&mut self, state: &State) -> bool {
@@ -269,7 +269,7 @@ impl CNF {
             }
         }
         clauses.push(clause);
-        self.normalize()
+        self.cleanup()
     }
 
     /// List up all unit clauses, single variable or its negation, as a [State] with remaining clauses as a new [CNF]
@@ -332,8 +332,6 @@ impl CNF {
                 }
             }
             self.cleanup()?;
-            self.sort_dedup()?;
-            self.detect_unit_conflict()?;
             self.remove_implied_clauses()?;
 
             if hash == self.current_hash() {
@@ -349,7 +347,13 @@ impl CNF {
         hasher.finish()
     }
 
-    /// Remove tautologies, and convert conflicting clauses to `CNF::Conflicted`
+    /// Fast cleanup. For full cleanup, use `normalize` instead
+    ///
+    /// - Remove tautologies
+    /// - Convert conflicting clauses to `CNF::Conflicted`
+    /// - Sort and dedup clauses
+    /// - Detect unit conflict
+    ///
     fn cleanup(&mut self) -> Result<(), DetectConflict> {
         let Self::Valid(clauses) = self else {
             return Err(DetectConflict);
@@ -366,25 +370,11 @@ impl CNF {
             }
             i += 1;
         }
-        Ok(())
-    }
 
-    /// Sort and dedup clauses
-    fn sort_dedup(&mut self) -> Result<(), DetectConflict> {
-        let Self::Valid(clauses) = self else {
-            return Err(DetectConflict);
-        };
         clauses.sort_unstable();
         clauses.dedup();
-        Ok(())
-    }
 
-    // Check for conflict e.g. (x1) ∧ (¬x1)
-    fn detect_unit_conflict(&mut self) -> Result<(), DetectConflict> {
-        let Self::Valid(clauses) = self else {
-            return Err(DetectConflict);
-        };
-        // Assume clauses are already sorted
+        // Detect unit conflict
         for i in 1..clauses.len() {
             if clauses[i].num_literals() > 1 {
                 break;
@@ -396,10 +386,11 @@ impl CNF {
                 }
             }
         }
+
         Ok(())
     }
 
-    /// Rmove redundant clauses, e.g. (x1 ∨ x2) ∧ (x1 ∨ x2 ∨ x3) = (x1 ∨ x2)
+    /// Remove redundant clauses, e.g. (x1 ∨ x2) ∧ (x1 ∨ x2 ∨ x3) = (x1 ∨ x2)
     fn remove_implied_clauses(&mut self) -> Result<(), DetectConflict> {
         let Self::Valid(clauses) = self else {
             return Err(DetectConflict);
@@ -418,13 +409,21 @@ impl CNF {
         Ok(())
     }
 
-    fn normalize(&mut self) -> Result<(), DetectConflict> {
+    pub fn normalize(&mut self) -> Result<(), DetectConflict> {
         self.cleanup()?;
-        self.sort_dedup()?;
-        self.detect_unit_conflict()?;
         self.remove_implied_clauses()?;
         self.unit_propagation()?;
         Ok(())
+    }
+
+    pub fn normalized_eq(&self, other: impl Into<Self>) -> bool {
+        let mut a = self.clone();
+        let mut b = other.into();
+        match (a.normalize(), b.normalize()) {
+            (Ok(()), Ok(())) => a == b,
+            (Err(_), Err(_)) => true,
+            _ => false,
+        }
     }
 }
 
@@ -611,13 +610,13 @@ mod tests {
 
         #[test]
         fn test_distributivity(a: CNF, b: CNF, c: CNF) {
-            assert_eq!(a.clone() & (b.clone() | c.clone()), (a.clone() & b.clone()) | (a.clone() & c.clone()));
-            assert_eq!(a.clone() | (b.clone() & c.clone()), (a.clone() | b.clone()) & (a.clone() | c.clone()));
+            prop_assert!((a.clone() & (b.clone() | c.clone())).normalized_eq((a.clone() & b.clone()) | (a.clone() & c.clone())));
+            prop_assert!((a.clone() | (b.clone() & c.clone())).normalized_eq((a.clone() | b.clone()) & (a.clone() | c.clone())));
         }
 
         #[test]
         fn test_absorption_or(a: CNF, b: CNF) {
-            assert_eq!(a.clone() | (a.clone() & b.clone()), a.clone());
+            prop_assert!((a.clone() | (a.clone() & b.clone())).normalized_eq(a));
         }
 
         #[test]
