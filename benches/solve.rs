@@ -28,9 +28,6 @@ fn bench_dpll(c: &mut Criterion) {
 fn bench_cdcl(c: &mut Criterion) {
     let mut group = c.benchmark_group("cdcl");
     for (title, digest) in DATASET {
-        if title.starts_with("sat") {
-            continue;
-        }
         let expr = CNF::from_rgbd(rgbd::Digest::new(digest.to_string()).read().unwrap());
         group.bench_with_input(BenchmarkId::new("cdcl", title), &expr, |b, expr| {
             b.iter(|| {
