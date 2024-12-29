@@ -198,10 +198,10 @@ impl CDCL {
             unreachable!("Start implication with conflicting CNF");
         };
         'unit_propagation: loop {
+            pending_once().await;
             for clause in clauses {
                 let mut c = clause.clone();
                 for l in self.trail.literals() {
-                    pending_once().await;
                     c.substitute(*l);
                     if c.is_conflicted() {
                         return Some(clause.clone());
@@ -227,8 +227,6 @@ impl CDCL {
                     return solution;
                 }
             }
-            pending_once().await;
-
             if let Some(mut conflict) = self.unit_propagation().await {
                 // Conflict in zero level means unsatisfiable
                 if self.trail.level() == 0 {
