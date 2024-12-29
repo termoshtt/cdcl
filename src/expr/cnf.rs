@@ -188,7 +188,7 @@ impl CNF {
                 return Err(DetectConflict);
             }
         }
-        self.normalize()
+        Ok(())
     }
 
     pub fn evaluate(&mut self, state: &State) -> bool {
@@ -269,7 +269,7 @@ impl CNF {
             }
         }
         clauses.push(clause);
-        self.normalize()
+        Ok(())
     }
 
     /// List up all unit clauses, single variable or its negation, as a [State] with remaining clauses as a new [CNF]
@@ -350,7 +350,7 @@ impl CNF {
     }
 
     /// Remove tautologies, and convert conflicting clauses to `CNF::Conflicted`
-    fn cleanup(&mut self) -> Result<(), DetectConflict> {
+    pub fn cleanup(&mut self) -> Result<(), DetectConflict> {
         let Self::Valid(clauses) = self else {
             return Err(DetectConflict);
         };
@@ -370,7 +370,7 @@ impl CNF {
     }
 
     /// Sort and dedup clauses
-    fn sort_dedup(&mut self) -> Result<(), DetectConflict> {
+    pub fn sort_dedup(&mut self) -> Result<(), DetectConflict> {
         let Self::Valid(clauses) = self else {
             return Err(DetectConflict);
         };
@@ -380,7 +380,7 @@ impl CNF {
     }
 
     // Check for conflict e.g. (x1) ∧ (¬x1)
-    fn detect_unit_conflict(&mut self) -> Result<(), DetectConflict> {
+    pub fn detect_unit_conflict(&mut self) -> Result<(), DetectConflict> {
         let Self::Valid(clauses) = self else {
             return Err(DetectConflict);
         };
@@ -399,8 +399,8 @@ impl CNF {
         Ok(())
     }
 
-    /// Rmove redundant clauses, e.g. (x1 ∨ x2) ∧ (x1 ∨ x2 ∨ x3) = (x1 ∨ x2)
-    fn remove_implied_clauses(&mut self) -> Result<(), DetectConflict> {
+    /// Remove redundant clauses, e.g. (x1 ∨ x2) ∧ (x1 ∨ x2 ∨ x3) = (x1 ∨ x2)
+    pub fn remove_implied_clauses(&mut self) -> Result<(), DetectConflict> {
         let Self::Valid(clauses) = self else {
             return Err(DetectConflict);
         };
@@ -418,7 +418,7 @@ impl CNF {
         Ok(())
     }
 
-    fn normalize(&mut self) -> Result<(), DetectConflict> {
+    pub fn normalize(&mut self) -> Result<(), DetectConflict> {
         self.cleanup()?;
         self.sort_dedup()?;
         self.detect_unit_conflict()?;
