@@ -535,24 +535,14 @@ mod tests {
 
         #[test]
         fn test_distributivity(a: Clause, b: Clause, c: Clause) {
-            assert_eq!(a.clone() & (b.clone() | c.clone()), (a.clone() & b.clone()) | (a.clone() & c.clone()));
-            assert_eq!(a.clone() | (b.clone() & c.clone()), (a.clone() | b.clone()) & (a.clone() | c.clone()));
+            prop_assert!((a.clone() & (b.clone() | c.clone())).normalized_eq((a.clone() & b.clone()) | (a.clone() & c.clone())));
+            prop_assert!((a.clone() | (b.clone() & c.clone())).normalized_eq((a.clone() | b.clone()) & (a.clone() | c.clone())));
         }
 
         #[test]
         fn test_absorption(a: Clause, b: Clause) {
-            let mut x = a.clone() | (a.clone() & b.clone());
-            let mut y = a.clone() & (a.clone() | b.clone());
-
-            if a.is_conflicted() {
-                assert!(x.normalize().is_err());
-                assert!(y.normalize().is_err());
-            } else {
-                x.normalize().unwrap();
-                y.normalize().unwrap();
-                assert_eq!(x, a);
-                assert_eq!(y, a);
-            }
+            prop_assert!((a.clone() | (a.clone() & b.clone())).normalized_eq(a.clone()));
+            prop_assert!((a.clone() & (a.clone() | b.clone())).normalized_eq(a.clone()));
         }
     }
 }
