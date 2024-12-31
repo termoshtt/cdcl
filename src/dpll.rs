@@ -1,24 +1,25 @@
 use crate::{pending_once, take_minimal_id, Literal, Solution, State, CNF};
 
-#[async_recursion::async_recursion]
-pub async fn dpll(mut input: CNF) -> Solution {
-    let mut state = State::default();
-
-    // Unit propagation
+fn unit_propagation(input: &mut CNF, state: &mut State) {
     loop {
-        pending_once().await;
         let units = input.take_unit_clauses();
         if units.is_empty() {
-            break;
+            return;
         }
-        for lit in units.into_iter() {
+        for lit in units {
             if input.substitute(lit).is_err() {
-                return Solution::UnSat;
+                return;
             }
             state.insert(lit);
         }
     }
+}
 
+#[async_recursion::async_recursion]
+pub async fn dpll(mut input: CNF) -> Solution {
+    let mut state = State::default();
+
+    unit_propagation(&mut input, &mut state);
     match input.is_solved() {
         Some(Solution::Sat(..)) => return Solution::Sat(state),
         Some(Solution::UnSat) => return Solution::UnSat,
@@ -27,6 +28,7 @@ pub async fn dpll(mut input: CNF) -> Solution {
 
     let fix = take_minimal_id(&input);
     for value in [true, false] {
+        pending_once().await;
         let lit = Literal {
             id: fix,
             positive: value,
