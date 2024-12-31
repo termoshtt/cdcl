@@ -1,4 +1,4 @@
-use crate::{pending_once, Clause, Literal, ResolutionTrace, Solution, CNF};
+use crate::{Clause, Literal, ResolutionTrace, Solution, CNF};
 use std::{collections::BTreeSet, fmt, num::NonZeroU32};
 
 pub async fn cdcl(expr: CNF) -> Solution {
@@ -198,7 +198,6 @@ impl CDCL {
             unreachable!("Start implication with conflicting CNF");
         };
         'unit_propagation: loop {
-            pending_once().await;
             for clause in clauses {
                 let mut c = clause.clone();
                 for l in self.trail.literals() {
