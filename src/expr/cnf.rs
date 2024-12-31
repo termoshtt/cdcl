@@ -331,13 +331,13 @@ impl CNF {
                     }
                 }
             }
-            self.cleanup()?;
-            self.remove_implied_clauses()?;
 
             if hash == self.current_hash() {
                 break;
             }
         }
+        self.cleanup()?;
+        self.remove_implied_clauses()?;
         Ok(())
     }
 
