@@ -1,7 +1,7 @@
 # cdcl
 
 [![doc](https://img.shields.io/badge/API_Reference-main-blue)](https://termoshtt.github.io/cdcl/cdcl/)
-[![CodSpeed](https://img.shields.io/badge/Benchmark-CodSpeed-green)](https://codspeed.io/termoshtt/cdcl)
+[![CodSpeed](https://img.shields.io/badge/Benchmark-CodSpeed-orange)](https://codspeed.io/termoshtt/cdcl)
 
 Toy Conflict-Driven Clause-Learning (CDCL) SAT solver for learning
 
