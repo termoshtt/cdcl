@@ -1,9 +1,9 @@
-use crate::{pending_once, Clause, Literal, ResolutionTrace, Solution, CNF};
+use crate::{Clause, Literal, ResolutionTrace, Solution, CNF};
 use std::{collections::BTreeSet, fmt, num::NonZeroU32};
 
 pub async fn cdcl(expr: CNF) -> Solution {
     let mut cdcl = CDCL::new(expr);
-    cdcl.solve().await
+    cdcl.solve()
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -193,12 +193,11 @@ impl CDCL {
     /// - A conflict clause is found. In this case, the conflict clause is returned. The solver should backjump.
     /// - All implications are resolved. In this case, `None` is returned. The solver should make a decision.
     ///
-    async fn unit_propagation(&mut self) -> Option<Clause> {
+    fn unit_propagation(&mut self) -> Option<Clause> {
         let CNF::Valid(clauses) = &self.expr else {
             unreachable!("Start implication with conflicting CNF");
         };
         'unit_propagation: loop {
-            pending_once().await;
             for clause in clauses {
                 let mut c = clause.clone();
                 for l in self.trail.literals() {
@@ -217,7 +216,7 @@ impl CDCL {
         None
     }
 
-    pub async fn solve(&mut self) -> Solution {
+    pub fn solve(&mut self) -> Solution {
         let mut proof = ResolutionTrace::default();
         'cdcl: loop {
             if let Some(solution) = self.expr.is_solved() {
@@ -227,7 +226,7 @@ impl CDCL {
                     return solution;
                 }
             }
-            if let Some(mut conflict) = self.unit_propagation().await {
+            if let Some(mut conflict) = self.unit_propagation() {
                 // Conflict in zero level means unsatisfiable
                 if self.trail.level() == 0 {
                     return Solution::UnSatWithProof(proof);
