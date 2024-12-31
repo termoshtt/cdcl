@@ -1,7 +1,8 @@
 use crate::{pending_once, take_minimal_id, Literal, Solution, State, CNF};
 
-fn unit_propagation(input: &mut CNF, state: &mut State) {
+async fn unit_propagation(input: &mut CNF, state: &mut State) {
     loop {
+        pending_once().await;
         let units = input.take_unit_clauses();
         if units.is_empty() {
             return;
@@ -15,36 +16,30 @@ fn unit_propagation(input: &mut CNF, state: &mut State) {
     }
 }
 
-#[async_recursion::async_recursion]
-pub async fn dpll(mut input: CNF) -> Solution {
-    let mut state = State::default();
-
-    unit_propagation(&mut input, &mut state);
-    match input.is_solved() {
-        Some(Solution::Sat(..)) => return Solution::Sat(state),
-        Some(Solution::UnSat) => return Solution::UnSat,
-        _ => {}
-    }
-
-    let fix = take_minimal_id(&input);
-    for value in [true, false] {
-        pending_once().await;
-        let lit = Literal {
-            id: fix,
-            positive: value,
-        };
-        log::trace!("Decision: {}", lit);
-        let mut new = input.clone();
-        if new.substitute(lit).is_err() {
-            continue;
+pub async fn dpll(input: CNF) -> Solution {
+    let mut stack = vec![(input, State::default())];
+    while let Some((mut input, mut state)) = stack.pop() {
+        unit_propagation(&mut input, &mut state).await;
+        match input.is_solved() {
+            Some(Solution::Sat(..)) => return Solution::Sat(state),
+            Some(Solution::UnSat) => continue,
+            _ => {}
         }
-        match dpll(new).await {
-            Solution::Sat(mut sub_state) => {
-                state.append(&mut sub_state);
-                state.insert(lit);
-                return Solution::Sat(state);
-            }
-            _ => continue,
+
+        // Make a decision
+        let id = take_minimal_id(&input);
+        let lit = Literal {
+            id,
+            positive: false,
+        };
+        let (mut input_, mut state_) = (input.clone(), state.clone());
+        if input_.substitute(lit).is_ok() {
+            state_.insert(lit);
+            stack.push((input_, state_));
+        }
+        if input.substitute(!lit).is_ok() {
+            state.insert(!lit);
+            stack.push((input, state));
         }
     }
     Solution::UnSat
