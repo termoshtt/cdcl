@@ -5,7 +5,7 @@ use proptest::prelude::*;
 use std::{
     collections::BTreeSet,
     fmt,
-    hash::{Hash, Hasher},
+    hash::Hash,
     num::NonZeroU32,
     ops::{BitAnd, BitOr, Not},
 };
@@ -312,39 +312,38 @@ impl CNF {
     /// assert_eq!(expr, lit!(1) & lit!(2) & lit!(3));
     /// ```
     pub fn unit_propagation(&mut self) -> Result<(), DetectConflict> {
+        let Self::Valid(clauses) = self else {
+            return Err(DetectConflict);
+        };
+        let mut substituted_units = Vec::new();
         loop {
-            let hash = self.current_hash();
-            let Self::Valid(clauses) = self else {
-                return Err(DetectConflict);
-            };
-            let mut units = BTreeSet::new();
-            for clause in clauses {
-                if let Some(lit) = clause.as_unit() {
-                    units.insert(lit);
-                    continue;
-                }
-                for lit in units.iter() {
-                    clause.substitute(*lit);
-                    if clause.is_conflicted() {
-                        *self = Self::Conflicted;
-                        return Err(DetectConflict);
-                    }
+            let mut units = Vec::new();
+            let mut non_units = Vec::new();
+            while let Some(clause) = clauses.pop() {
+                if let Some(unit) = clause.as_unit() {
+                    units.push(unit);
+                } else {
+                    non_units.push(clause);
                 }
             }
-
-            if hash == self.current_hash() {
+            for lit in &units {
+                for c in &mut non_units {
+                    c.substitute(*lit);
+                }
+            }
+            clauses.append(&mut non_units);
+            if units.is_empty() {
                 break;
+            } else {
+                substituted_units.append(&mut units);
             }
+        }
+        for lit in substituted_units {
+            clauses.push(Clause::from(lit));
         }
         self.cleanup()?;
         self.remove_implied_clauses()?;
         Ok(())
-    }
-
-    fn current_hash(&self) -> u64 {
-        let mut hasher = std::collections::hash_map::DefaultHasher::new();
-        self.hash(&mut hasher);
-        hasher.finish()
     }
 
     /// Fast cleanup. For full cleanup, use `normalize` instead
@@ -610,8 +609,8 @@ mod tests {
 
         #[test]
         fn test_distributivity(a: CNF, b: CNF, c: CNF) {
-            prop_assert!((a.clone() & (b.clone() | c.clone())).normalized_eq((a.clone() & b.clone()) | (a.clone() & c.clone())));
-            prop_assert!((a.clone() | (b.clone() & c.clone())).normalized_eq((a.clone() | b.clone()) & (a.clone() | c.clone())));
+            prop_assert!(dbg!(a.clone() & (b.clone() | c.clone())).normalized_eq(dbg!((a.clone() & b.clone()) | (a.clone() & c.clone()))));
+            prop_assert!(dbg!(a.clone() | (b.clone() & c.clone())).normalized_eq(dbg!((a.clone() | b.clone()) & (a.clone() | c.clone()))));
         }
 
         #[test]
