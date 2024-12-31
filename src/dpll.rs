@@ -4,21 +4,7 @@ use crate::{pending_once, take_minimal_id, Literal, Solution, State, CNF};
 pub async fn dpll(mut input: CNF) -> Solution {
     let mut state = State::default();
 
-    // Unit propagation
-    loop {
-        pending_once().await;
-        let units = input.take_unit_clauses();
-        if units.is_empty() {
-            break;
-        }
-        for lit in units.into_iter() {
-            if input.substitute(lit).is_err() {
-                return Solution::UnSat;
-            }
-            state.insert(lit);
-        }
-    }
-
+    let _ = input.unit_propagation();
     match input.is_solved() {
         Some(Solution::Sat(..)) => return Solution::Sat(state),
         Some(Solution::UnSat) => return Solution::UnSat,
@@ -27,6 +13,7 @@ pub async fn dpll(mut input: CNF) -> Solution {
 
     let fix = take_minimal_id(&input);
     for value in [true, false] {
+        pending_once().await;
         let lit = Literal {
             id: fix,
             positive: value,
