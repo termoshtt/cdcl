@@ -188,7 +188,7 @@ impl CNF {
                 return Err(DetectConflict);
             }
         }
-        self.cleanup()
+        Ok(())
     }
 
     pub fn evaluate(&mut self, state: &State) -> bool {
