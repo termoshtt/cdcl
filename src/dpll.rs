@@ -27,7 +27,7 @@ pub async fn dpll(input: CNF) -> Solution {
         }
 
         // Make a decision
-        let id = take_minimal_id(&input);
+        let id = take_minimal_id(&input).expect("Failed to take minimal id");
         let lit = Literal {
             id,
             positive: false,

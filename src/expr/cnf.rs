@@ -164,6 +164,15 @@ impl CNF {
         }
     }
 
+    pub fn literals(&self) -> impl Iterator<Item = &Literal> {
+        static EMPTY: Vec<Clause> = Vec::new();
+        let clauses = match self {
+            Self::Valid(clauses) => clauses,
+            Self::Conflicted => &EMPTY,
+        };
+        clauses.iter().filter_map(Clause::literals).flatten()
+    }
+
     pub fn is_solved(&self) -> Option<Solution> {
         match self {
             Self::Valid(..) => {
