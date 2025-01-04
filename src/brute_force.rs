@@ -9,7 +9,7 @@ pub async fn brute_force(input: CNF) -> Solution {
     }
     pending_once().await;
 
-    let fix = take_minimal_id(&input);
+    let fix = take_minimal_id(&input).expect("Failed to take minimal id");
     for value in [true, false] {
         let lit = Literal {
             id: fix,
