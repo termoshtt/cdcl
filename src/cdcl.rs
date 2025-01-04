@@ -219,7 +219,7 @@ impl CDCL {
 
     pub async fn solve(&mut self) -> Solution {
         let mut proof = ResolutionTrace::default();
-        'cdcl: loop {
+        loop {
             if let Some(solution) = self.expr.is_solved() {
                 if let Solution::UnSat = solution {
                     return Solution::UnSatWithProof(proof);
@@ -252,10 +252,10 @@ impl CDCL {
                 if self.expr.add_clause(conflict).is_err() {
                     return Solution::UnSatWithProof(proof);
                 }
-                continue 'cdcl;
-            }
-            if let Some(solution) = self.make_decision() {
-                return solution;
+            } else {
+                if let Some(solution) = self.make_decision() {
+                    return solution;
+                }
             }
         }
     }
