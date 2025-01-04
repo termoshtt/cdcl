@@ -252,10 +252,8 @@ impl CDCL {
                 if self.expr.add_clause(conflict).is_err() {
                     return Solution::UnSatWithProof(proof);
                 }
-            } else {
-                if let Some(solution) = self.make_decision() {
-                    return solution;
-                }
+            } else if let Some(solution) = self.make_decision() {
+                return solution;
             }
         }
     }
