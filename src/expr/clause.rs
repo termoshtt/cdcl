@@ -524,7 +524,7 @@ mod tests {
 
         #[test]
         fn test_associativity_and(a: Clause, b: Clause, c: Clause) {
-            assert_eq!(dbg!(a.clone() & b.clone()) & c.clone(), a.clone() & dbg!(b.clone() & c.clone()));
+            prop_assert!(((a.clone() & b.clone()) & c.clone()).normalized_eq(a.clone() & (b.clone() & c.clone())));
         }
 
         #[test]
