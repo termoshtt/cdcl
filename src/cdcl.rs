@@ -232,40 +232,22 @@ impl CDCL {
                 if self.trail.level() == 0 {
                     return Solution::UnSatWithProof(proof);
                 }
-                // Backjump
+                // Create conflict clause by resolution
                 for i in self.trail.current_level().implicated.iter().rev() {
                     if let Ok(c) = conflict.clone().resolution(i.reason.clone()) {
-                        if let Some(lit) = c.as_unit() {
-                            proof.append(c);
-                            self.expr = self.expr.clone() & lit;
-                            self.trail.backjump(0);
-                            continue 'cdcl;
-                        }
                         if c.is_conflicted() {
                             // This means ⊥ can be derived from clauses
                             return Solution::UnSatWithProof(proof);
                         }
                         conflict = c;
+                        if conflict.as_unit().is_some() {
+                            break;
+                        }
                     }
                 }
-                let mut levels: Vec<_> = conflict
-                    .literals()
-                    .expect("Already checked")
-                    .map(|lit| {
-                        self.trail
-                            .level_of(lit.id)
-                            .expect("Literal of conflict clause must be in trail")
-                    })
-                    .collect();
-                let n = levels.len();
-                assert!(n > 0, "Conflict clause must have at least one literal");
-                levels.sort_unstable();
-                assert_eq!(
-                    levels[n - 1],
-                    self.trail.level(),
-                    "Conflict clause must have one literal from the current decision level"
-                );
-                self.trail.backjump(if n > 1 { levels[n - 2] } else { 0 });
+                // Backjump to the appropriate level
+                let dest = self.backjump_destination(&conflict);
+                self.trail.backjump(dest);
                 proof.append(conflict.clone());
                 if self.expr.add_clause(conflict).is_err() {
                     return Solution::UnSatWithProof(proof);
@@ -275,6 +257,34 @@ impl CDCL {
             if let Some(solution) = self.make_decision() {
                 return solution;
             }
+        }
+    }
+
+    fn backjump_destination(&self, conflict: &Clause) -> usize {
+        if conflict.as_unit().is_some() {
+            return 0;
+        }
+        let mut levels: Vec<_> = conflict
+            .literals()
+            .expect("Already checked")
+            .map(|lit| {
+                self.trail
+                    .level_of(lit.id)
+                    .expect("Literal of conflict clause must be in trail")
+            })
+            .collect();
+        let n = levels.len();
+        assert!(n > 0, "Conflict clause must have at least one literal");
+        levels.sort_unstable();
+        assert_eq!(
+            levels[n - 1],
+            self.trail.level(),
+            "Conflict clause must have one literal from the current decision level"
+        );
+        if n > 1 {
+            levels[n - 2]
+        } else {
+            0
         }
     }
 }
