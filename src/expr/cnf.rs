@@ -258,10 +258,6 @@ impl CNF {
     /// // Conflicting clauses are converted to CNF::Conflicted
     /// let mut expr = lit!(1) & lit!(2);
     /// assert!(expr.add_clause(Clause::Conflicted).is_err());
-    ///
-    /// // x1 ∧ ¬x1 = ⊥
-    /// let mut expr: CNF = lit!(1).into();
-    /// assert!(expr.add_clause(lit!(-1).into()).is_err());
     /// ```
     pub fn add_clause(&mut self, clause: Clause) -> Result<(), DetectConflict> {
         if clause.is_conflicted() {
@@ -278,7 +274,7 @@ impl CNF {
             }
         }
         clauses.push(clause);
-        self.cleanup()
+        Ok(())
     }
 
     /// List up all unit clauses, single variable or its negation, as a [State] with remaining clauses as a new [CNF]
@@ -579,8 +575,8 @@ mod tests {
     proptest! {
         #[test]
         fn test_commutative(a: CNF, b: CNF) {
-            assert_eq!(a.clone() | b.clone(), b.clone() | a.clone());
-            assert_eq!(a.clone() & b.clone(), b.clone() & a.clone());
+            prop_assert!((a.clone() | b.clone()).normalized_eq(b.clone() | a.clone()));
+            prop_assert!((a.clone() & b.clone()).normalized_eq(b.clone() & a.clone()));
         }
 
         #[test]
@@ -591,7 +587,7 @@ mod tests {
 
         #[test]
         fn test_tautology(a: CNF) {
-            assert_eq!(a.clone() | !a, CNF::tautology());
+            prop_assert!((a.clone() | !a).normalized_eq(CNF::tautology()));
         }
 
         #[test]

@@ -218,14 +218,14 @@ mod tests {
 
         #[test]
         fn test_commutative(a: Literal, b: Literal) {
-            assert_eq!(a | b, b | a);
-            assert_eq!(a & b, b & a);
+            prop_assert_eq!(a | b, b | a);
+            prop_assert!((a & b).normalized_eq(b & a));
         }
 
         #[test]
         fn test_associativity(a: Literal, b: Literal, c: Literal) {
-            assert_eq!((a & b) & c, a & (b & c));
-            assert_eq!((a | b) | c, a | (b | c));
+            prop_assert_eq!((a | b) | c, a | (b | c));
+            prop_assert!(((a & b) & c).normalized_eq(a & (b & c)));
         }
 
         #[test]
