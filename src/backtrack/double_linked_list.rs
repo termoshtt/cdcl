@@ -76,6 +76,7 @@ impl Solver {
             }
             size[id] = cells.len() - start[id];
         }
+        ensure!(cells.len() < u32::MAX as usize, "Too many cells");
 
         // Linking the cells
         for pos in head_size..cells.len() {
@@ -163,6 +164,56 @@ mod tests {
                         prop_assert!(false, "Linked list is broken");
                     }
                 }
+            }
+
+            // Traverse the cells in forward direction
+            for lit in 2..head_size {
+                let mut pos = lit;
+                let mut current = solver.get_cell(lit);
+                let size = current.clause_id_or_size;
+                let mut count = 0;
+                loop {
+                    let next = solver.get_cell(current.forward);
+                    prop_assert_eq!(next.backward, pos);
+                    if current.literal != 0 {
+                        prop_assert!(current.forward < pos)
+                    }
+                    if next.literal != 0 {
+                        prop_assert_eq!(next.literal, lit);
+                    }
+                    pos = current.forward;
+                    current = next;
+                    if current.literal == 0 {
+                        break;
+                    }
+                    count += 1;
+                }
+                prop_assert_eq!(count, size, "Count of literal {} mismatch", lit);
+            }
+
+            // Traverse the cells in backward direction
+            for lit in 2..head_size {
+                let mut pos = lit;
+                let mut current = solver.get_cell(lit);
+                let size = current.clause_id_or_size;
+                let mut count = 0;
+                loop {
+                    let next = solver.get_cell(current.backward);
+                    prop_assert_eq!(next.forward, pos);
+                    if current.literal != 0 {
+                        prop_assert!(current.backward < pos)
+                    }
+                    if next.literal != 0 {
+                        prop_assert_eq!(next.literal, lit);
+                    }
+                    pos = current.backward;
+                    current = next;
+                    if current.literal == 0 {
+                        break;
+                    }
+                    count += 1;
+                }
+                prop_assert_eq!(count, size, "Count of literal {} mismatch", lit);
             }
         }
     }
