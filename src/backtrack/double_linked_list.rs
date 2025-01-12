@@ -1,8 +1,12 @@
-//! Algorithm A (double linked list) in Knuth 4B
-
-use crate::CNF;
+use crate::{Solution, CNF};
 use anyhow::{ensure, Context, Result};
 use std::{collections::HashMap, num::NonZeroU32};
+
+/// Algorithm A in Knuth 4B, backtrack with double linked list
+pub async fn backtrack_a(cnf: CNF) -> Solution {
+    let _solver = Solver::new(cnf).unwrap();
+    todo!()
+}
 
 /// Cell for each literal in clauses
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
