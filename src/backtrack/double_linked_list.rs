@@ -90,6 +90,14 @@ impl Solver {
             literals,
         })
     }
+
+    fn head_cell_size(&self) -> usize {
+        *self.start.last().unwrap()
+    }
+
+    fn get_cell(&self, pos: u32) -> &Cell {
+        &self.cells[pos as usize]
+    }
 }
 
 #[cfg(test)]
@@ -123,13 +131,34 @@ mod tests {
             }
 
             // Head cells
-            prop_assert_eq!(&solver.cells[0], &Cell::default());
-            prop_assert_eq!(&solver.cells[1], &Cell::default());
-            let head_size = *solver.start.last().unwrap();
+            prop_assert_eq!(solver.get_cell(0), &Cell::default());
+            prop_assert_eq!(solver.get_cell(1), &Cell::default());
+            let head_size = solver.head_cell_size() as u32;
             prop_assert!(head_size >= 3);
             for pos in 2..head_size {
-                let cell = &solver.cells[pos];
+                let cell = solver.get_cell(pos);
                 prop_assert_eq!(cell.literal, 0, "Head cells at {} should have 0 literal", pos);
+                prop_assert!(cell.forward < solver.cells.len() as u32);
+                prop_assert!(cell.backward < solver.cells.len() as u32);
+                match (cell.forward >= head_size, cell.backward >= head_size) {
+                    (true, true) => {
+                        // Linked cell exists
+                        let f = &solver.get_cell(cell.forward);
+                        let b = &solver.get_cell(cell.backward);
+                        prop_assert_eq!(f.literal, pos);
+                        prop_assert_eq!(b.literal, pos);
+                        prop_assert!(cell.clause_id_or_size > 0);
+                    }
+                    (false, false) => {
+                        // No linked cells
+                        prop_assert_eq!(cell.forward, pos);
+                        prop_assert_eq!(cell.backward, pos);
+                        prop_assert!(cell.clause_id_or_size == 0);
+                    }
+                    _ => {
+                        prop_assert!(false, "Linked list is broken");
+                    }
+                }
             }
         }
     }
