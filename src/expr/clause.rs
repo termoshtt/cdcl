@@ -126,7 +126,7 @@ impl Clause {
         }
     }
 
-    pub fn literals(&self) -> Option<impl Iterator<Item = &Literal>> {
+    pub fn literals(&self) -> Option<impl DoubleEndedIterator<Item = &Literal>> {
         match self {
             Self::Valid { literals } => Some(literals.iter()),
             Self::Conflicted => None,
