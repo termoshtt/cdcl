@@ -17,6 +17,7 @@ struct Cell {
     clause_id_or_size: u32,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
 struct Solver {
     start: Vec<usize>,
     size: Vec<usize>,
@@ -36,7 +37,8 @@ impl Solver {
             .collect();
 
         // Head two dummy cells and special cells
-        let mut cells = (0..(2 * literals.len() + 2))
+        let head_size = 2 * literals.len() + 2;
+        let mut cells = (0..head_size)
             .map(|i| {
                 if i < 2 {
                     // Dummy cells
@@ -72,7 +74,7 @@ impl Solver {
         }
 
         // Linking the cells
-        for pos in start[0]..cells.len() {
+        for pos in head_size..cells.len() {
             let lit = cells[pos].literal;
             let f_pos = std::mem::replace(&mut cells[lit as usize].forward, pos as u32);
             cells[lit as usize].clause_id_or_size += 1;
@@ -87,5 +89,48 @@ impl Solver {
             cells,
             literals,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use proptest::prelude::*;
+
+    proptest! {
+        #[test]
+        fn test_solver_init(cnf in CNF::arbitrary()) {
+            // If the CNF is conflicted or tautology, the solver should return an error
+            let conflicted = cnf.is_conflicted();
+            let is_tautology = cnf.is_tautology();
+            let solver = super::Solver::new(cnf);
+            if conflicted || is_tautology {
+                prop_assert!(solver.is_err());
+                return Ok(());
+            }
+
+            // Otherwise, the solver should return a valid solver, and the fields should not be empty
+            let solver = solver.unwrap();
+            prop_assert!(!solver.start.is_empty());
+            prop_assert!(!solver.size.is_empty());
+            prop_assert!(!solver.literals.is_empty());
+            // 2 dummy cells, at least 1 special cell, and at least 1 clause cell
+            prop_assert!(solver.cells.len() >= 4);
+
+            // Clause of smaller ID should have larger start
+            for i in 0..solver.start.len() -1 {
+                prop_assert!(solver.start[i] > solver.start[i + 1]);
+            }
+
+            // Head cells
+            prop_assert_eq!(&solver.cells[0], &Cell::default());
+            prop_assert_eq!(&solver.cells[1], &Cell::default());
+            let head_size = *solver.start.last().unwrap();
+            prop_assert!(head_size >= 3);
+            for pos in 2..head_size {
+                let cell = &solver.cells[pos];
+                prop_assert_eq!(cell.literal, 0, "Head cells at {} should have 0 literal", pos);
+            }
+        }
     }
 }
