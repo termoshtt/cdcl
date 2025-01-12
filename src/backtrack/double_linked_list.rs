@@ -40,9 +40,10 @@ impl Solver {
 
         // Cells for clauses
         let clauses = cnf.clauses().context("Conflicted CNF")?;
-        let mut starts = vec![0; clauses.len()];
+        let mut start = vec![0; clauses.len()];
+        let mut size = vec![0; clauses.len()];
         for (id, clause) in clauses.iter().enumerate().rev() {
-            starts[id] = cells.len();
+            start[id] = cells.len();
             for lit in clause.literals().context("Conflicted clause")?.rev() {
                 cells.push(Cell {
                     literal: 2 * literals[&lit.id] + if lit.positive { 0 } else { 1 },
@@ -50,8 +51,16 @@ impl Solver {
                     ..Default::default()
                 });
             }
+            size[id] = cells.len() - start[id];
         }
 
-        todo!()
+        // TODO: Fill the forward and backward pointers
+
+        Ok(Self {
+            start,
+            size,
+            cells,
+            literals,
+        })
     }
 }
