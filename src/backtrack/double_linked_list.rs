@@ -32,7 +32,7 @@ impl Solver {
             .supp()
             .into_iter()
             .enumerate()
-            .map(|(base, new)| (new, base as u32))
+            .map(|(new, original)| (original, new as u32 + 1)) // New ID starts with 1
             .collect();
 
         // Head two dummy cells and special cells
