@@ -4,20 +4,20 @@ use std::{collections::HashMap, num::NonZeroU32};
 
 /// Algorithm A in Knuth 4B, backtrack with double linked list
 pub async fn backtrack_a(cnf: CNF) -> Solution {
-    let _solver = Solver::new(cnf).unwrap();
-    todo!()
+    let mut solver = Solver::new(cnf).unwrap();
+    solver.solve().unwrap()
 }
 
 /// Cell for each literal in clauses
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 struct Cell {
-    /// The literal in the cell. This is default value `0` for head cells.
+    /// `L`: The literal in the cell. This is default value `0` for head cells.
     literal: u32,
-    /// The forward pointer
+    /// `F`: The forward pointer
     forward: u32,
-    /// The backward pointer
+    /// `B`: The backward pointer
     backward: u32,
-    /// The clause id or the number of cells with the same literal
+    /// `C`: The clause id or the number of cells with the same literal
     clause_id_or_size: u32,
 }
 
@@ -29,9 +29,55 @@ struct Solver {
     /// The original literal IDs
     literals: HashMap<NonZeroU32, u32>,
 
-    // The current state
+    // `a`: The number of active clauses in the current state
     num_active_clauses: usize,
-    depth: usize,
+    // `d`: Implicit depth of the search tree + 1
+    depth: u32,
+    // `m_d`: The status of each literal at depth `d`
+    status: HashMap<u32, Status>,
+}
+
+/// Search status for each literal
+#[derive(Debug, Clone, PartialEq, Eq, Copy, PartialOrd, Ord)]
+enum Status {
+    /// Try `1` before trying `0`
+    TryT = 0,
+    /// Try `0` before trying `1`
+    TryF = 1,
+    /// Try `1` after trying `0` has failed
+    TryTAfterF = 2,
+    /// Try `0` after trying `1` has failed
+    TryFAfterT = 3,
+    /// Try `1` for the pure literal
+    PureT = 4,
+    /// Try `0` for the pure literal
+    PureF = 5,
+}
+
+impl PartialEq<u32> for Status {
+    fn eq(&self, other: &u32) -> bool {
+        *self as u32 == *other
+    }
+}
+
+impl PartialOrd<u32> for Status {
+    fn partial_cmp(&self, other: &u32) -> Option<std::cmp::Ordering> {
+        (*self as u32).partial_cmp(other)
+    }
+}
+
+impl From<u32> for Status {
+    fn from(value: u32) -> Self {
+        match value {
+            0 => Self::TryT,
+            1 => Self::TryF,
+            2 => Self::TryTAfterF,
+            3 => Self::TryFAfterT,
+            4 => Self::PureT,
+            5 => Self::PureF,
+            _ => unreachable!("Status out of range"),
+        }
+    }
 }
 
 impl Solver {
@@ -104,6 +150,7 @@ impl Solver {
             literals,
             num_active_clauses,
             depth,
+            status: HashMap::new(),
         })
     }
 
@@ -113,6 +160,38 @@ impl Solver {
 
     fn get_cell(&self, pos: u32) -> &Cell {
         &self.cells[pos as usize]
+    }
+
+    fn get_cell_mut(&mut self, pos: u32) -> &mut Cell {
+        &mut self.cells[pos as usize]
+    }
+
+    /// `C[l]`
+    fn literal_size(&self, lit: u32) -> u32 {
+        let cell = self.get_cell(lit);
+        debug_assert_eq!(cell.literal, 0);
+        cell.clause_id_or_size
+    }
+
+    pub fn solve(&mut self) -> Result<Solution> {
+        // A2: Choose the literal
+        let mut l = 2 * self.depth;
+        // if C[l] <= C[l^1] then l = l + 1
+        if self.literal_size(l) <= self.literal_size(l + 1) {
+            l += 1;
+        }
+        // m_d <- l&1 + 4[C(l^1) == 0]
+        self.status.insert(
+            self.depth,
+            if self.literal_size(l ^ 1) == 0 {
+                l & 1
+            } else {
+                l & 1 + 4
+            }
+            .into(),
+        );
+
+        todo!()
     }
 }
 
