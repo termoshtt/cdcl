@@ -1,5 +1,6 @@
 use crate::{Solution, State, CNF};
 use anyhow::{ensure, Context, Result};
+use either::Either;
 use std::{collections::HashMap, num::NonZeroU32};
 
 /// Algorithm A in Knuth 4B, backtrack with double linked list
@@ -169,6 +170,7 @@ impl Solver {
     /// `C[l]`
     fn literal_size(&self, lit: u32) -> u32 {
         let cell = self.get_cell(lit);
+        // Not the cell for clauses
         debug_assert_eq!(cell.literal, 0);
         cell.clause_id_or_size
     }
@@ -179,7 +181,7 @@ impl Solver {
     }
 
     // A2: Select the literal
-    fn select(&mut self) -> Option<Solution> {
+    fn select(&mut self) -> Either<Solution, u32> {
         let mut l = 2 * self.depth;
         // if C[l] <= C[l^1] then l = l + 1
         if self.literal_size(l) <= self.literal_size(l + 1) {
@@ -197,16 +199,17 @@ impl Solver {
         );
         // If C[l] = a then return SAT
         if self.literal_size(l) == self.num_active_clauses {
-            Some(Solution::Sat(self.get_state()))
+            Either::Left(Solution::Sat(self.get_state()))
         } else {
-            None
+            Either::Right(l)
         }
     }
 
     pub fn solve(&mut self) -> Solution {
-        if let Some(solution) = self.select() {
-            return solution;
-        }
+        let l = match self.select() {
+            Either::Left(solution) => return solution,
+            Either::Right(l) => l,
+        };
 
         todo!()
     }
