@@ -155,6 +155,7 @@ impl Solver {
         })
     }
 
+    /// `2*n + 2`
     fn head_cell_size(&self) -> usize {
         *self.start.last().unwrap()
     }
@@ -183,7 +184,7 @@ impl Solver {
     // A2: Select the literal
     fn select(&mut self) -> Either<Solution, u32> {
         let mut l = 2 * self.depth;
-        // if C[l] <= C[l^1] then l = l + 1
+        // if C[l] <= C[l+1] then l = l + 1
         if self.literal_size(l) <= self.literal_size(l + 1) {
             l += 1;
         }
@@ -205,13 +206,44 @@ impl Solver {
         }
     }
 
+    /// A3: remove ¬l from clauses
+    /// - If empty clause is found, return false
+    fn remove_negated(&mut self, l: u32) -> bool {
+        let head_size = self.head_cell_size() as u32;
+        let mut p = self.get_cell(l ^ 1).forward;
+        while p >= head_size {
+            let j = self.get_cell(p).clause_id_or_size;
+            let i = self.size[j as usize];
+            debug_assert!(i > 0, "This cell is not inactivated");
+            if i == 1 {
+                // This clause becomes empty by inactivating this cell
+                // Start partial backtracking
+                p = self.get_cell(p).backward;
+                while p >= head_size {
+                    let j = self.get_cell(p).clause_id_or_size;
+                    self.size[j as usize] += 1;
+                    p = self.get_cell(p).backward;
+                }
+                return false;
+            }
+            self.size[j as usize] = i - 1;
+            p = self.get_cell(p).forward;
+        }
+        return true;
+    }
+
     pub fn solve(&mut self) -> Solution {
         let l = match self.select() {
             Either::Left(solution) => return solution,
             Either::Right(l) => l,
         };
-
-        todo!()
+        if self.remove_negated(l) {
+            // A4
+            todo!()
+        } else {
+            // A5
+            todo!()
+        }
     }
 }
 
