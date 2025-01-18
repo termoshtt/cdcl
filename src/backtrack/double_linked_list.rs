@@ -212,10 +212,11 @@ impl Solver {
         let head_size = self.head_cell_size() as u32;
         let mut p = self.get_cell(l ^ 1).forward;
         while p >= head_size {
-            let j = self.get_cell(p).clause_id_or_size;
-            let i = self.size[j as usize];
-            debug_assert!(i > 0, "This cell is not inactivated");
-            if i == 1 {
+            debug_assert_eq!(self.get_cell(p).literal, l ^ 1);
+            let clause_id = self.get_cell(p).clause_id_or_size;
+            let size = self.size[clause_id as usize];
+            debug_assert_ne!(size, 0, "This cell is not inactivated");
+            if size == 1 {
                 // This clause becomes empty by inactivating this cell
                 // Start partial backtracking
                 p = self.get_cell(p).backward;
@@ -226,24 +227,54 @@ impl Solver {
                 }
                 return false;
             }
-            self.size[j as usize] = i - 1;
+            self.size[clause_id as usize] = size - 1;
             p = self.get_cell(p).forward;
         }
         return true;
     }
 
+    /// A4: Inactivate clauses containing l
+    pub fn inactivate(&mut self, l: u32) {
+        let head_size = self.head_cell_size() as u32;
+        let mut p = self.get_cell(l).forward;
+        while p >= head_size {
+            debug_assert_eq!(self.get_cell(p).literal, l);
+            let j = self.get_cell(p).clause_id_or_size;
+            // The last active cell of this clause must be `p`
+            let start = self.start[j as usize];
+            let end = start + self.size[j as usize] - 1;
+            debug_assert_eq!(end as u32, p);
+            // Remove cells in this clause from linked list
+            for s in start..end {
+                let f = self.cells[s].forward;
+                let b = self.cells[s].backward;
+                self.cells[f as usize].backward = b;
+                self.cells[b as usize].forward = f;
+                let q = self.cells[s].literal;
+                debug_assert_ne!(q, l);
+                debug_assert_ne!(q, 0);
+                self.cells[q as usize].clause_id_or_size -= 1;
+            }
+            p = self.get_cell(p).forward;
+        }
+        self.num_active_clauses -= self.get_cell(l).clause_id_or_size;
+        self.depth += 1;
+    }
+
     pub fn solve(&mut self) -> Solution {
+        // A3
         let l = match self.select() {
             Either::Left(solution) => return solution,
             Either::Right(l) => l,
         };
         if self.remove_negated(l) {
             // A4
-            todo!()
+            self.inactivate(l);
         } else {
             // A5
             todo!()
         }
+        todo!()
     }
 }
 
