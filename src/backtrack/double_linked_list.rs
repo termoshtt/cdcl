@@ -5,6 +5,12 @@ use std::{collections::HashMap, num::NonZeroU32};
 
 /// Algorithm A in Knuth 4B, backtrack with double linked list
 pub async fn backtrack_a(cnf: CNF) -> Solution {
+    if cnf.is_conflicted() {
+        return Solution::UnSat;
+    }
+    if cnf.is_tautology() {
+        return Solution::Sat(State::default());
+    }
     let mut solver = Solver::new(cnf).unwrap();
     solver.solve()
 }
@@ -406,6 +412,16 @@ mod tests {
                 }
                 prop_assert_eq!(count, size, "Count of literal {} mismatch", lit);
             }
+        }
+    }
+
+    #[test]
+    fn test_solve() {
+        for (expr, expected) in crate::testing::single_solution_cases() {
+            assert_eq!(
+                crate::timeout::block_on(backtrack_a(dbg!(expr).clone())),
+                dbg!(expected),
+            );
         }
     }
 }
