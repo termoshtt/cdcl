@@ -261,20 +261,42 @@ impl Solver {
         self.depth += 1;
     }
 
-    pub fn solve(&mut self) -> Solution {
-        // A3
-        let l = match self.select() {
-            Either::Left(solution) => return solution,
-            Either::Right(l) => l,
-        };
-        if self.remove_negated(l) {
-            // A4
-            self.inactivate(l);
+    /// A5: Try the next literal
+    fn flip(&mut self) -> Option<u32> {
+        let m_d = self.status[&self.depth] as u32;
+        if m_d < 2 {
+            self.status.insert(self.depth, (3 - m_d).into());
+            Some(2 * self.depth + m_d & 1)
         } else {
-            // A5
-            todo!()
+            None
         }
-        todo!()
+    }
+
+    pub fn solve(&mut self) -> Solution {
+        'a2: loop {
+            // A2
+            let mut l = match self.select() {
+                Either::Left(solution) => return solution,
+                Either::Right(l) => l,
+            };
+            'a3: loop {
+                // A3
+                if self.remove_negated(l) {
+                    // A4
+                    self.inactivate(l);
+                    // Back to A2 via recursion
+                    continue 'a2;
+                } else {
+                    // A5
+                    if let Some(flipped) = self.flip() {
+                        l = flipped;
+                        continue 'a3;
+                    }
+                    // A6: Backtrack
+                    todo!()
+                }
+            }
+        }
     }
 }
 
