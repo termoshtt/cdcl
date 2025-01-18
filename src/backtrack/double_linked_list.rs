@@ -164,10 +164,6 @@ impl Solver {
         &self.cells[pos as usize]
     }
 
-    fn get_cell_mut(&mut self, pos: u32) -> &mut Cell {
-        &mut self.cells[pos as usize]
-    }
-
     /// `C[l]`
     fn literal_size(&self, lit: u32) -> u32 {
         let cell = self.get_cell(lit);
@@ -194,7 +190,7 @@ impl Solver {
             if self.literal_size(l ^ 1) == 0 {
                 l & 1
             } else {
-                l & 1 + 4
+                (l & 1) + 4
             }
             .into(),
         );
@@ -230,7 +226,7 @@ impl Solver {
             self.size[clause_id as usize] = size - 1;
             p = self.get_cell(p).forward;
         }
-        return true;
+        true
     }
 
     /// A4: Inactivate clauses containing l
@@ -266,7 +262,7 @@ impl Solver {
         let m_d = self.status[&self.depth] as u32;
         if m_d < 2 {
             self.status.insert(self.depth, (3 - m_d).into());
-            Some(2 * self.depth + m_d & 1)
+            Some(2 * self.depth + (m_d & 1))
         } else {
             None
         }
