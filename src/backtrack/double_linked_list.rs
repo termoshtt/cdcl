@@ -28,6 +28,10 @@ struct Solver {
     cells: Vec<Cell>,
     /// The original literal IDs
     literals: HashMap<NonZeroU32, u32>,
+
+    // The current state
+    num_active_clauses: usize,
+    depth: usize,
 }
 
 impl Solver {
@@ -88,11 +92,18 @@ impl Solver {
             cells[pos].forward = f_pos;
         }
 
+        // A1: Initialize the state
+        let num_active_clauses = size.iter().filter(|&&s| s > 0).count();
+        ensure!(num_active_clauses > 0, "No active clauses");
+        let depth = 1;
+
         Ok(Self {
             start,
             size,
             cells,
             literals,
+            num_active_clauses,
+            depth,
         })
     }
 
