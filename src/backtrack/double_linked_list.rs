@@ -1,11 +1,11 @@
-use crate::{Solution, CNF};
+use crate::{Solution, State, CNF};
 use anyhow::{ensure, Context, Result};
 use std::{collections::HashMap, num::NonZeroU32};
 
 /// Algorithm A in Knuth 4B, backtrack with double linked list
 pub async fn backtrack_a(cnf: CNF) -> Solution {
     let mut solver = Solver::new(cnf).unwrap();
-    solver.solve().unwrap()
+    solver.solve()
 }
 
 /// Cell for each literal in clauses
@@ -30,7 +30,7 @@ struct Solver {
     literals: HashMap<NonZeroU32, u32>,
 
     // `a`: The number of active clauses in the current state
-    num_active_clauses: usize,
+    num_active_clauses: u32,
     // `d`: Implicit depth of the search tree + 1
     depth: u32,
     // `m_d`: The status of each literal at depth `d`
@@ -139,7 +139,7 @@ impl Solver {
         }
 
         // A1: Initialize the state
-        let num_active_clauses = size.iter().filter(|&&s| s > 0).count();
+        let num_active_clauses = size.iter().filter(|&&s| s > 0).count() as u32;
         ensure!(num_active_clauses > 0, "No active clauses");
         let depth = 1;
 
@@ -173,8 +173,13 @@ impl Solver {
         cell.clause_id_or_size
     }
 
-    pub fn solve(&mut self) -> Result<Solution> {
-        // A2: Choose the literal
+    fn get_state(&self) -> State {
+        // x_j <- 1 ^ (m_j & 1)
+        todo!()
+    }
+
+    // A2: Select the literal
+    fn select(&mut self) -> Option<Solution> {
         let mut l = 2 * self.depth;
         // if C[l] <= C[l^1] then l = l + 1
         if self.literal_size(l) <= self.literal_size(l + 1) {
@@ -190,6 +195,18 @@ impl Solver {
             }
             .into(),
         );
+        // If C[l] = a then return SAT
+        if self.literal_size(l) == self.num_active_clauses {
+            Some(Solution::Sat(self.get_state()))
+        } else {
+            None
+        }
+    }
+
+    pub fn solve(&mut self) -> Solution {
+        if let Some(solution) = self.select() {
+            return solution;
+        }
 
         todo!()
     }
