@@ -1,4 +1,4 @@
-use cdcl::{backtrack_a, block_on, cdcl, dpll, CNF};
+use cdcl::{backtrack, block_on, cdcl, dpll, CNF};
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 
 const DATASET: &[(&str, &str)] = &[
@@ -19,7 +19,7 @@ fn bench_backtrack(c: &mut Criterion) {
         let expr = CNF::from_rgbd(rgbd::Digest::new(digest.to_string()).read().unwrap());
         group.bench_with_input(BenchmarkId::new("backtrack", title), &expr, |b, expr| {
             b.iter(|| {
-                let _solution = block_on(backtrack_a(expr.clone()));
+                let _solution = block_on(backtrack(expr.clone()));
             })
         });
     }
