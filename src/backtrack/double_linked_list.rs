@@ -242,7 +242,7 @@ impl Solver {
     }
 
     /// A4: Inactivate clauses containing l
-    pub fn inactivate(&mut self, l: u32) {
+    fn inactivate(&mut self, l: u32) {
         let head_size = self.head_cell_size() as u32;
         let mut p = self.get_cell(l).forward;
         while p >= head_size {
@@ -281,16 +281,38 @@ impl Solver {
     }
 
     /// A7: Reactivate clauses containing l
-    pub fn reactivate(&mut self, _l: u32) {
-        todo!()
+    fn reactivate(&mut self, l: u32) {
+        self.num_active_clauses += self.get_cell(l).clause_id_or_size;
+        let head_size = self.head_cell_size() as u32;
+        let mut p = self.get_cell(l).backward;
+        while p >= head_size {
+            let j = self.get_cell(p).clause_id_or_size;
+            let start = self.start[j as usize];
+            let end = start + self.size[j as usize] - 1;
+            for s in start..end {
+                let f = self.cells[s].forward;
+                let b = self.cells[s].backward;
+                self.cells[f as usize].backward = s as u32;
+                self.cells[b as usize].forward = s as u32;
+                let q = self.cells[s].literal;
+                self.cells[q as usize].clause_id_or_size += 1;
+            }
+            p = self.get_cell(p).backward;
+        }
     }
 
     /// A8: Restore ¬l to clauses
-    pub fn restore_negated(&mut self, _l: u32) {
-        todo!()
+    fn restore_negated(&mut self, l: u32) {
+        let head_size = self.head_cell_size() as u32;
+        let mut p = self.get_cell(l ^ 1).forward;
+        while p >= head_size {
+            let j = self.get_cell(p).clause_id_or_size;
+            self.size[j as usize] += 1;
+            p = self.get_cell(p).forward;
+        }
     }
 
-    pub fn solve(&mut self) -> Solution {
+    fn solve(&mut self) -> Solution {
         'a2: loop {
             // A2
             let mut l = match self.select() {
