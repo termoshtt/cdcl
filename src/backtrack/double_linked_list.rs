@@ -182,9 +182,9 @@ impl Solver {
     fn get_state(&self) -> State {
         self.literals
             .iter()
-            .map(|(id, lit)| Literal {
-                id: *id,
-                positive: self.status[&lit].clone() as u32 % 2 == 0,
+            .map(|(&id, lit)| Literal {
+                id,
+                positive: self.status[lit] as u32 % 2 == 0,
             })
             .collect()
     }
