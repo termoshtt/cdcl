@@ -124,7 +124,8 @@ impl Solver {
         let mut size = vec![0; clauses.len()];
         for (id, clause) in clauses.iter().enumerate().rev() {
             start[id] = cells.len();
-            for lit in clause.literals().context("Conflicted clause")?.rev() {
+            let ls: Vec<_> = clause.literals().context("Conflicted clause")?.collect();
+            for lit in ls.iter().rev() {
                 cells.push(Cell {
                     literal: 2 * literals[&lit.id] + if lit.positive { 0 } else { 1 },
                     clause_id_or_size: id as u32,
