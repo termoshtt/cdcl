@@ -1,4 +1,4 @@
-use cdcl::{block_on, cdcl, dpll, CNF};
+use cdcl::{backtrack_a, block_on, cdcl, dpll, CNF};
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 
 const DATASET: &[(&str, &str)] = &[
@@ -12,6 +12,18 @@ const DATASET: &[(&str, &str)] = &[
     ("unsat4", "38de0de52a209b6d0beb50986fd8b506"),
     ("unsat5", "04e47e6635908600ef3938b32644825a"),
 ];
+
+fn bench_backtrack(c: &mut Criterion) {
+    let mut group = c.benchmark_group("backtrack");
+    for (title, digest) in DATASET {
+        let expr = CNF::from_rgbd(rgbd::Digest::new(digest.to_string()).read().unwrap());
+        group.bench_with_input(BenchmarkId::new("backtrack", title), &expr, |b, expr| {
+            b.iter(|| {
+                let _solution = block_on(backtrack_a(expr.clone()));
+            })
+        });
+    }
+}
 
 fn bench_dpll(c: &mut Criterion) {
     let mut group = c.benchmark_group("dpll");
@@ -37,5 +49,5 @@ fn bench_cdcl(c: &mut Criterion) {
     }
 }
 
-criterion_group!(benches, bench_dpll, bench_cdcl);
+criterion_group!(benches, bench_backtrack, bench_dpll, bench_cdcl);
 criterion_main!(benches);
