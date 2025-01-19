@@ -2,6 +2,7 @@
 
 //! Toy Conflict-Driven Clause-Learning (CDCL) SAT solver for learning
 
+mod backtrack;
 pub mod benchmark;
 mod brute_force;
 mod cdcl;
@@ -14,6 +15,7 @@ mod timeout;
 #[cfg(test)]
 pub(crate) mod testing;
 
+pub use backtrack::*;
 pub use brute_force::*;
 pub use cdcl::*;
 pub use dpll::*;
