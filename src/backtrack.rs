@@ -326,24 +326,23 @@ impl Solver {
                     // A4
                     self.inactivate(l);
                     continue 'a2;
-                } else {
-                    loop {
-                        // A5
-                        if let Some(flipped) = self.flip() {
-                            l = flipped;
-                            continue 'a3;
-                        }
-                        // A6: Backtrack
-                        if self.depth == 1 {
-                            return Solution::UnSat;
-                        }
-                        self.depth -= 1;
-                        l = 2 * self.depth + (self.status[&self.depth] as u32 & 1);
-                        // A7: re-activate clauses containing l
-                        self.reactivate(l);
-                        // A8: restore ¬l to clauses
-                        self.restore_negated(l);
+                }
+                loop {
+                    // A5
+                    if let Some(flipped) = self.flip() {
+                        l = flipped;
+                        continue 'a3;
                     }
+                    // A6: Backtrack
+                    if self.depth == 1 {
+                        return Solution::UnSat;
+                    }
+                    self.depth -= 1;
+                    l = 2 * self.depth + (self.status[&self.depth] as u32 & 1);
+                    // A7: re-activate clauses containing l
+                    self.reactivate(l);
+                    // A8: restore ¬l to clauses
+                    self.restore_negated(l);
                 }
             }
         }
