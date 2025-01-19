@@ -1,4 +1,4 @@
-use crate::{Literal, Solution, State, CNF};
+use crate::{pending_once, Literal, Solution, State, CNF};
 use anyhow::{ensure, Context, Result};
 use either::Either;
 use std::{collections::HashMap, num::NonZeroU32};
@@ -12,7 +12,7 @@ pub async fn backtrack(cnf: CNF) -> Solution {
         return Solution::Sat(State::default());
     }
     let mut solver = Solver::new(cnf).unwrap();
-    solver.solve()
+    solver.solve().await
 }
 
 /// Cell for each literal in clauses
@@ -313,14 +313,16 @@ impl Solver {
         }
     }
 
-    fn solve(&mut self) -> Solution {
+    async fn solve(&mut self) -> Solution {
         'a2: loop {
+            pending_once().await;
             // A2
             let mut l = match self.select() {
                 Either::Left(solution) => return solution,
                 Either::Right(l) => l,
             };
             'a3: loop {
+                pending_once().await;
                 // A3
                 if self.remove_negated(l) {
                     // A4
@@ -328,6 +330,7 @@ impl Solver {
                     continue 'a2;
                 }
                 loop {
+                    pending_once().await;
                     // A5
                     if let Some(flipped) = self.flip() {
                         l = flipped;
