@@ -280,6 +280,16 @@ impl Solver {
         }
     }
 
+    /// A7: Reactivate clauses containing l
+    pub fn reactivate(&mut self, _l: u32) {
+        todo!()
+    }
+
+    /// A8: Restore ¬l to clauses
+    pub fn restore_negated(&mut self, _l: u32) {
+        todo!()
+    }
+
     pub fn solve(&mut self) -> Solution {
         'a2: loop {
             // A2
@@ -292,16 +302,25 @@ impl Solver {
                 if self.remove_negated(l) {
                     // A4
                     self.inactivate(l);
-                    // Back to A2 via recursion
                     continue 'a2;
                 } else {
-                    // A5
-                    if let Some(flipped) = self.flip() {
-                        l = flipped;
-                        continue 'a3;
+                    loop {
+                        // A5
+                        if let Some(flipped) = self.flip() {
+                            l = flipped;
+                            continue 'a3;
+                        }
+                        // A6: Backtrack
+                        if self.depth == 1 {
+                            return Solution::UnSat;
+                        }
+                        self.depth -= 1;
+                        l = 2 * self.depth + (self.status[&self.depth] as u32 & 1);
+                        // A7: re-activate clauses containing l
+                        self.reactivate(l);
+                        // A8: restore ¬l to clauses
+                        self.restore_negated(l);
                     }
-                    // A6: Backtrack
-                    todo!()
                 }
             }
         }
