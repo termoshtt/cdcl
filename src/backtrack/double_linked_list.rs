@@ -1,4 +1,4 @@
-use crate::{Solution, State, CNF};
+use crate::{Literal, Solution, State, CNF};
 use anyhow::{ensure, Context, Result};
 use either::Either;
 use std::{collections::HashMap, num::NonZeroU32};
@@ -178,9 +178,15 @@ impl Solver {
         cell.clause_id_or_size
     }
 
+    /// x_j <- 1 ^ (m_j & 1)
     fn get_state(&self) -> State {
-        // x_j <- 1 ^ (m_j & 1)
-        todo!()
+        self.literals
+            .iter()
+            .map(|(id, lit)| Literal {
+                id: *id,
+                positive: self.status[&lit].clone() as u32 % 2 == 0,
+            })
+            .collect()
     }
 
     // A2: Select the literal
