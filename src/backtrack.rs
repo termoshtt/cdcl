@@ -200,7 +200,7 @@ impl Solver {
         // m_d <- l&1 + 4[C(l^1) == 0]
         self.status.insert(
             self.depth,
-            if self.literal_size(l ^ 1) == 0 {
+            if self.literal_size(l ^ 1) != 0 {
                 l & 1
             } else {
                 (l & 1) + 4
