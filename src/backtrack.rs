@@ -200,6 +200,7 @@ impl Solver {
             debug_assert_eq!(end as u32, p);
             // Remove cells in this clause from linked list
             for s in start..end {
+                debug_assert_eq!(self.cells[s].clause_id_or_size, j);
                 let f = self.cells[s].forward;
                 let b = self.cells[s].backward;
                 self.cells[f as usize].backward = b;
