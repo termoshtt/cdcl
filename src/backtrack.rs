@@ -1,7 +1,10 @@
 use crate::{pending_once, Literal, Solution, State, CNF};
 use anyhow::{ensure, Context, Result};
 use either::Either;
-use std::{collections::HashMap, num::NonZeroU32};
+use std::{
+    collections::{BTreeSet, HashMap},
+    num::NonZeroU32,
+};
 
 /// Algorithm A in Knuth 4B, backtrack with double linked list
 pub async fn backtrack(cnf: CNF) -> Solution {
@@ -34,7 +37,7 @@ struct Solver {
     size: Vec<usize>,
     cells: Vec<Cell>,
     /// The original literal IDs
-    literals: HashMap<NonZeroU32, usize>,
+    id_mapping: IdMapping,
 
     // `a`: The number of active clauses in the current state
     num_active_clauses: u32,
@@ -135,18 +138,51 @@ impl From<u32> for Status {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct IdMapping(HashMap<NonZeroU32, usize>);
+
+impl IdMapping {
+    fn new(literals: &BTreeSet<NonZeroU32>) -> Self {
+        Self(
+            literals
+                .into_iter()
+                .enumerate()
+                .map(|(new, &original)| (original, new))
+                .collect(),
+        )
+    }
+
+    fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    #[allow(dead_code)]
+    fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    fn translate(&self, lit: Literal) -> u32 {
+        2 * (self.0[&lit.id] as u32 + 1) + if lit.positive { 0 } else { 1 }
+    }
+
+    fn as_state(&self, stack: &StatusStack) -> State {
+        self.0
+            .iter()
+            .map(|(&id, &d)| Literal {
+                id,
+                positive: stack.0[d].is_true(),
+            })
+            .collect()
+    }
+}
+
 impl Solver {
     fn new(cnf: CNF) -> Result<Self> {
         // Mapping the literals to a contiguous range
-        let literals: HashMap<NonZeroU32, usize> = cnf
-            .supp()
-            .into_iter()
-            .enumerate()
-            .map(|(new, original)| (original, new)) // New ID starts with 1
-            .collect();
+        let id_mapping = IdMapping::new(&cnf.supp());
 
         // Head two dummy cells and special cells
-        let head_size = 2 * literals.len() + 2;
+        let head_size = 2 * id_mapping.len() + 2;
         let mut cells = (0..head_size)
             .map(|i| {
                 if i < 2 {
@@ -175,7 +211,7 @@ impl Solver {
             let ls: Vec<_> = clause.literals().context("Conflicted clause")?.collect();
             for lit in ls.iter().rev() {
                 cells.push(Cell {
-                    literal: 2 * (literals[&lit.id] as u32 + 1) + if lit.positive { 0 } else { 1 },
+                    literal: id_mapping.translate(**lit),
                     clause_id_or_size: id as u32,
                     ..Default::default()
                 });
@@ -202,7 +238,7 @@ impl Solver {
             start,
             size,
             cells,
-            literals,
+            id_mapping,
             num_active_clauses,
             status: StatusStack::default(),
         })
@@ -226,13 +262,7 @@ impl Solver {
     }
 
     fn get_status(&self) -> State {
-        self.literals
-            .iter()
-            .map(|(&id, &d)| Literal {
-                id,
-                positive: self.status.0[d].is_true(),
-            })
-            .collect()
+        self.id_mapping.as_state(&self.status)
     }
 
     // A2: Select the literal
@@ -408,7 +438,7 @@ mod tests {
             let solver = solver.unwrap();
             prop_assert!(!solver.start.is_empty());
             prop_assert!(!solver.size.is_empty());
-            prop_assert!(!solver.literals.is_empty());
+            prop_assert!(!solver.id_mapping.is_empty());
             // 2 dummy cells, at least 1 special cell, and at least 1 clause cell
             prop_assert!(solver.cells.len() >= 4);
 
