@@ -480,16 +480,20 @@ mod tests {
         use std::ops::Deref;
         let digest = rgbd::Digest::new("90fd3ab118c483a7d99707384c6c6c0a".to_string());
 
-        // This is a known unsat instance
+        // This is a known SAT instance
         let answer = rgbd::get_results()
             .unwrap()
             .get(digest.deref())
             .cloned()
             .unwrap();
-        assert_eq!(answer, rgbd::SatResult::UnSat);
+        assert_eq!(answer, rgbd::SatResult::Sat);
 
         let expr = CNF::from_rgbd(digest.read().unwrap());
         let out = crate::timeout::block_on(backtrack(expr));
-        assert_eq!(out, Solution::UnSat);
+        if let Solution::Sat(state) = &out {
+            dbg!(state);
+        } else {
+            panic!("Must be SAT");
+        }
     }
 }
