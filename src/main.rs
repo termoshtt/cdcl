@@ -70,6 +70,7 @@ fn main() -> Result<()> {
     let args = Args::parse();
     let name = args.algorithm.clone();
     let solver = match name.as_str() {
+        "backtrack" => |expr, timeout| Ok(block_on_timeout(backtrack(expr), timeout)?),
         "brute_force" => |expr, timeout| Ok(block_on_timeout(brute_force(expr), timeout)?),
         "dpll" => |expr, timeout| Ok(block_on_timeout(dpll(expr), timeout)?),
         "cdcl" => |expr, timeout| Ok(block_on_timeout(cdcl(expr), timeout)?),
