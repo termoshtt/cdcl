@@ -34,14 +34,53 @@ struct Solver {
     size: Vec<usize>,
     cells: Vec<Cell>,
     /// The original literal IDs
-    literals: HashMap<NonZeroU32, u32>,
+    literals: HashMap<NonZeroU32, usize>,
 
     // `a`: The number of active clauses in the current state
     num_active_clauses: u32,
-    // `d`: Implicit depth of the search tree + 1
-    depth: u32,
     // `m_d`: The status of each literal at depth `d`
-    status: HashMap<u32, Status>,
+    status: StatusStack,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+struct StatusStack(Vec<Status>);
+
+impl StatusStack {
+    /// Implicit depth of the search tree + 1
+    fn d(&self) -> u32 {
+        self.0.len() as u32 + 1
+    }
+
+    fn m_d(&self) -> Status {
+        debug_assert!(!self.0.is_empty());
+        *self.0.last().unwrap()
+    }
+
+    fn flip(&mut self) -> Option<u32> {
+        debug_assert!(!self.0.is_empty());
+        let md = self.0.last_mut().unwrap();
+        *md = match *md {
+            Status::TryT => Status::TryFAfterT,
+            Status::TryF => Status::TryTAfterF,
+            _ => return None,
+        };
+        Some(self.next_literal())
+    }
+
+    /// Stack new status in A2
+    fn select(&mut self, status: Status) {
+        self.0.push(status);
+    }
+
+    /// Pop the last status, and returns next literal `l = 2d + m_d & 1`
+    fn backtrack(&mut self) -> Option<u32> {
+        self.0.pop()?;
+        Some(self.next_literal())
+    }
+
+    fn next_literal(&self) -> u32 {
+        2 * self.d() + (self.m_d() as u32 & 1)
+    }
 }
 
 /// Search status for each literal
@@ -59,6 +98,15 @@ enum Status {
     PureT = 4,
     /// Try `0` for the pure literal
     PureF = 5,
+}
+
+impl Status {
+    fn is_true(&self) -> bool {
+        match self {
+            Self::TryT | Self::TryTAfterF | Self::PureT => true,
+            _ => false,
+        }
+    }
 }
 
 impl PartialEq<u32> for Status {
@@ -90,11 +138,11 @@ impl From<u32> for Status {
 impl Solver {
     fn new(cnf: CNF) -> Result<Self> {
         // Mapping the literals to a contiguous range
-        let literals: HashMap<NonZeroU32, u32> = cnf
+        let literals: HashMap<NonZeroU32, usize> = cnf
             .supp()
             .into_iter()
             .enumerate()
-            .map(|(new, original)| (original, new as u32 + 1)) // New ID starts with 1
+            .map(|(new, original)| (original, new)) // New ID starts with 1
             .collect();
 
         // Head two dummy cells and special cells
@@ -127,7 +175,7 @@ impl Solver {
             let ls: Vec<_> = clause.literals().context("Conflicted clause")?.collect();
             for lit in ls.iter().rev() {
                 cells.push(Cell {
-                    literal: 2 * literals[&lit.id] + if lit.positive { 0 } else { 1 },
+                    literal: 2 * (literals[&lit.id] as u32 + 1) + if lit.positive { 0 } else { 1 },
                     clause_id_or_size: id as u32,
                     ..Default::default()
                 });
@@ -149,7 +197,6 @@ impl Solver {
         // A1: Initialize the state
         let num_active_clauses = size.iter().filter(|&&s| s > 0).count() as u32;
         ensure!(num_active_clauses > 0, "No active clauses");
-        let depth = 1;
 
         Ok(Self {
             start,
@@ -157,8 +204,7 @@ impl Solver {
             cells,
             literals,
             num_active_clauses,
-            depth,
-            status: HashMap::new(),
+            status: StatusStack::default(),
         })
     }
 
@@ -179,27 +225,25 @@ impl Solver {
         cell.clause_id_or_size
     }
 
-    /// x_j <- 1 ^ (m_j & 1)
-    fn get_state(&self) -> State {
+    fn get_status(&self) -> State {
         self.literals
             .iter()
-            .map(|(&id, lit)| Literal {
+            .map(|(&id, &d)| Literal {
                 id,
-                positive: self.status[lit] as u32 % 2 == 0,
+                positive: self.status.0[d].is_true(),
             })
             .collect()
     }
 
     // A2: Select the literal
     fn select(&mut self) -> Either<Solution, u32> {
-        let mut l = 2 * self.depth;
+        let mut l = 2 * self.status.d();
         // if C[l] <= C[l+1] then l = l + 1
         if self.literal_size(l) <= self.literal_size(l + 1) {
             l += 1;
         }
         // m_d <- l&1 + 4[C(l^1) == 0]
-        self.status.insert(
-            self.depth,
+        self.status.select(
             if self.literal_size(l ^ 1) != 0 {
                 l & 1
             } else {
@@ -209,7 +253,7 @@ impl Solver {
         );
         // If C[l] = a then return SAT
         if self.literal_size(l) == self.num_active_clauses {
-            Either::Left(Solution::Sat(self.get_state()))
+            Either::Left(Solution::Sat(self.get_status()))
         } else {
             Either::Right(l)
         }
@@ -267,18 +311,11 @@ impl Solver {
             p = self.get_cell(p).forward;
         }
         self.num_active_clauses -= self.get_cell(l).clause_id_or_size;
-        self.depth += 1;
     }
 
     /// A5: Try the next literal
     fn flip(&mut self) -> Option<u32> {
-        let m_d = self.status[&self.depth] as u32;
-        if m_d < 2 {
-            self.status.insert(self.depth, (3 - m_d).into());
-            Some(2 * self.depth + (m_d & 1))
-        } else {
-            None
-        }
+        self.status.flip()
     }
 
     /// A7: Reactivate clauses containing l
@@ -337,11 +374,9 @@ impl Solver {
                         continue 'a3;
                     }
                     // A6: Backtrack
-                    if self.depth == 1 {
+                    let Some(l) = self.status.backtrack() else {
                         return Solution::UnSat;
-                    }
-                    self.depth -= 1;
-                    l = 2 * self.depth + (self.status[&self.depth] as u32 & 1);
+                    };
                     // A7: re-activate clauses containing l
                     self.reactivate(l);
                     // A8: restore ¬l to clauses
