@@ -1,13 +1,12 @@
+mod id_mapping;
 mod status;
 
-use crate::{pending_once, Literal, Solution, State, CNF};
+use id_mapping::*;
+use status::*;
+
+use crate::{pending_once, Solution, State, CNF};
 use anyhow::{ensure, Context, Result};
 use either::Either;
-use status::*;
-use std::{
-    collections::{BTreeSet, HashMap},
-    num::NonZeroU32,
-};
 
 /// Algorithm A in Knuth 4B, backtrack with double linked list
 pub async fn backtrack(cnf: CNF) -> Solution {
@@ -46,44 +45,6 @@ struct Solver {
     num_active_clauses: u32,
     // `m_d`: The status of each literal at depth `d`
     status: StatusStack,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-struct IdMapping(HashMap<NonZeroU32, usize>);
-
-impl IdMapping {
-    fn new(literals: &BTreeSet<NonZeroU32>) -> Self {
-        Self(
-            literals
-                .into_iter()
-                .enumerate()
-                .map(|(new, &original)| (original, new))
-                .collect(),
-        )
-    }
-
-    fn len(&self) -> usize {
-        self.0.len()
-    }
-
-    #[allow(dead_code)]
-    fn is_empty(&self) -> bool {
-        self.0.is_empty()
-    }
-
-    fn translate(&self, lit: Literal) -> u32 {
-        2 * (self.0[&lit.id] as u32 + 1) + if lit.positive { 0 } else { 1 }
-    }
-
-    fn as_state(&self, stack: &StatusStack) -> State {
-        self.0
-            .iter()
-            .map(|(&id, &d)| Literal {
-                id,
-                positive: stack.get(d).is_true(),
-            })
-            .collect()
-    }
 }
 
 impl Solver {
