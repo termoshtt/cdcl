@@ -4,22 +4,22 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-anyhow = "1.0.95"
+anyhow = "1.0.97"
 async-recursion = "1.1.1"
-clap = { version = "4.5.26", features = ["derive"] }
+clap = { version = "4.5.31", features = ["derive"] }
 colored = "3.0.0"
-either = "1.13.0"
+either = "1.15.0"
 env_logger = "0.11.6"
-log = "0.4.22"
+log = "0.4.26"
 maplit = "1.0.2"
 proptest = "1.6.0"
 rgbd = "0.2.1"
-serde = { version = "1.0.217", features = ["derive"] }
-serde_json = "1.0.137"
+serde = { version = "1.0.219", features = ["derive"] }
+serde_json = "1.0.140"
 
 [dev-dependencies]
 criterion = { version = "2.7.2", package = "codspeed-criterion-compat" }
-insta = "1.42.0"
+insta = "1.42.2"
 
 [[bench]]
 name = "solve"
